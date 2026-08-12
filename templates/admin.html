@@ -17,6 +17,12 @@
             --text-muted: #8696a0;
         }
 
+        /* Custom Scrollbar for Dark Theme */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-main); }
+        ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
         body { 
             background: var(--bg-main); 
             color: var(--text-main); 
@@ -57,7 +63,9 @@
             border-radius: 8px;
             border: 1px solid var(--border-color);
             text-align: center;
+            transition: transform 0.2s ease;
         }
+        .stat-card:hover { transform: translateY(-2px); }
         .stat-card .num { font-size: 22px; font-weight: bold; color: var(--accent-green); margin-top: 4px; }
         .stat-card .label { font-size: 12px; color: var(--text-muted); }
 
@@ -83,9 +91,12 @@
             box-sizing: border-box;
             outline: none;
             font-size: 14px;
-            transition: border-color 0.2s;
+            transition: border-color 0.2s, box-shadow 0.2s;
         }
-        input[type="text"]:focus { border-color: var(--accent-green); }
+        input[type="text"]:focus { 
+            border-color: var(--accent-green); 
+            box-shadow: 0 0 0 2px rgba(0, 168, 132, 0.2);
+        }
 
         .btn {
             border: none;
@@ -98,10 +109,11 @@
             align-items: center;
             justify-content: center;
             gap: 5px;
-            transition: opacity 0.2s, transform 0.1s;
+            transition: all 0.2s ease;
         }
-        .btn:active { transform: scale(0.98); }
-        .btn:hover { opacity: 0.9; }
+        .btn:active { transform: scale(0.96); }
+        .btn:hover { opacity: 0.85; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
         .btn-ban { background: var(--accent-red); color: white; }
         .btn-ip { background: var(--accent-orange); color: white; }
@@ -121,7 +133,7 @@
         table { width: 100%; border-collapse: collapse; min-width: 650px; }
         th, td { border-bottom: 1px solid var(--border-color); padding: 10px 12px; text-align: center; font-size: 13px; }
         th { background: #2a3942; color: var(--text-main); font-weight: 600; white-space: nowrap; }
-        tr:hover { background: rgba(255, 255, 255, 0.02); }
+        tr:hover { background: rgba(255, 255, 255, 0.03); }
 
         code { 
             background: #111b21; 
@@ -143,9 +155,7 @@
         }
 
         /* Search Filter Input */
-        .search-box {
-            margin-bottom: 10px;
-        }
+        .search-box { margin-bottom: 10px; }
 
         /* Toast Notifications */
         #toast {
@@ -163,14 +173,14 @@
             transform: translateX(-50%);
             box-shadow: 0 4px 10px rgba(0,0,0,0.5);
             font-size: 14px;
+            transition: visibility 0s, opacity 0.3s linear, bottom 0.3s ease-out;
+            opacity: 0;
         }
         #toast.show {
             visibility: visible;
-            animation: fadein 0.3s, fadeout 0.3s 2.7s;
+            opacity: 1;
+            bottom: 40px;
         }
-
-        @keyframes fadein { from { bottom: 0; opacity: 0; } to { bottom: 30px; opacity: 1; } }
-        @keyframes fadeout { from { bottom: 30px; opacity: 1; } to { bottom: 0; opacity: 0; } }
     </style>
 </head>
 <body>
@@ -213,7 +223,7 @@
         </p>
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
             <input type="text" id="new_global_pass_input" placeholder="اكتب كلمة سر الموقع الجديدة هنا..." style="flex: 1; min-width: 200px;">
-            <button class="btn btn-unban" onclick="updateGlobalPassword()">تعديل وحفظ 💾</button>
+            <button class="btn btn-unban" id="btn-update-pass" onclick="updateGlobalPassword()">تعديل وحفظ 💾</button>
         </div>
     </div>
 
@@ -249,8 +259,8 @@
                         <td><code>{{ u.device_id }}</code></td>
                         <td style="color: var(--accent-green); font-weight: bold;">{{ u.room }}</td>
                         <td>
-                            <button class="btn btn-ban" onclick="doBan('{{ u.device_id }}', null)">حظر جهاز</button>
-                            <button class="btn btn-ip" onclick="doBan(null, '{{ u.ip }}')">حظر IP</button>
+                            <button class="btn btn-ban" onclick="doBan('{{ u.device_id }}', null, this)">حظر جهاز</button>
+                            <button class="btn btn-ip" onclick="doBan(null, '{{ u.ip }}', this)">حظر IP</button>
                         </td>
                     </tr>
                     {% endfor %}
@@ -281,7 +291,7 @@
                         <td>{{ r.id }}</td>
                         <td style="font-weight: bold; color: var(--accent-green);">{{ r.name }}</td>
                         <td><code>{{ r.password }}</code></td>
-                        <td><button class="btn btn-ban" onclick="deleteRoom('{{ r.id }}', '{{ r.name }}')">حذف الغرفة نهائياً 🗑️</button></td>
+                        <td><button class="btn btn-ban" onclick="deleteRoom('{{ r.id }}', '{{ r.name }}', this)">حذف الغرفة نهائياً 🗑️</button></td>
                     </tr>
                     {% endfor %}
                     {% if not rooms %}
@@ -296,7 +306,7 @@
     <div class="box">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 10px;">
             <h2 style="margin: 0;">أجهزة وزوار دخلوا سابقاً (السجل التاريخي) 📜</h2>
-            <button class="btn btn-ban" style="background: #c0392b;" onclick="deleteLog('all')">مسح السجل بالكامل 🧹</button>
+            <button class="btn btn-ban" style="background: #c0392b;" onclick="deleteLog('all', this)">مسح السجل بالكامل 🧹</button>
         </div>
         
         <input type="text" id="history-search" placeholder="تصفية السجل (أدخل اسم، IP، أو بصمة...)" class="search-box" onkeyup="filterTable('history-search', 'history-table')">
@@ -322,9 +332,9 @@
                         <td style="color: var(--accent-green); font-weight: bold;">{{ h.room_name }}</td>
                         <td style="direction: ltr; font-size: 12px; color: var(--text-muted);">{{ h.last_visit }}</td>
                         <td>
-                            <button class="btn btn-ban" onclick="doBan('{{ h.device_id }}', null)">جهاز</button>
-                            <button class="btn btn-ip" onclick="doBan(null, '{{ h.ip_address }}')">IP</button>
-                            <button class="btn btn-secondary" style="font-size: 11px;" onclick="deleteLog('{{ h.id }}')">حذف 🗑️</button>
+                            <button class="btn btn-ban" onclick="doBan('{{ h.device_id }}', null, this)">جهاز</button>
+                            <button class="btn btn-ip" onclick="doBan(null, '{{ h.ip_address }}', this)">IP</button>
+                            <button class="btn btn-secondary" style="font-size: 11px;" onclick="deleteLog('{{ h.id }}', this)">حذف 🗑️</button>
                         </td>
                     </tr>
                     {% endfor %}
@@ -350,7 +360,7 @@
                     {% for b in banned_devs %}
                     <tr>
                         <td><code>{{ b.device_id }}</code></td>
-                        <td><button class="btn btn-unban" onclick="doUnban('{{ b.device_id }}', null)">إلغاء حظر الجهاز</button></td>
+                        <td><button class="btn btn-unban" onclick="doUnban('{{ b.device_id }}', null, this)">إلغاء حظر الجهاز</button></td>
                     </tr>
                     {% endfor %}
                     {% if not banned_devs %}
@@ -370,7 +380,7 @@
                     {% for b in banned_ips %}
                     <tr>
                         <td><code>{{ b.ip_address }}</code></td>
-                        <td><button class="btn btn-unban" onclick="doUnban(null, '{{ b.ip_address }}')">إلغاء حظر IP</button></td>
+                        <td><button class="btn btn-unban" onclick="doUnban(null, '{{ b.ip_address }}', this)">إلغاء حظر IP</button></td>
                     </tr>
                     {% endfor %}
                     {% if not banned_ips %}
@@ -387,20 +397,31 @@
         const p = new URLSearchParams(window.location.search).get('pass');
         let refreshInterval = null;
         let autoRefreshActive = true;
+        let toastTimeout = null;
 
         // Toast Notification System
         function showToast(msg, isError = false) {
             const toast = document.getElementById("toast");
             toast.innerText = msg;
             toast.style.backgroundColor = isError ? "#c0392b" : "#27ae60";
-            toast.className = "show";
-            setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 3000);
+            toast.classList.add("show");
+            
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => { 
+                toast.classList.remove("show"); 
+            }, 3000);
+        }
+
+        // Disable button helper to prevent double submissions
+        function toggleButtonState(btnElement, disable) {
+            if (btnElement) {
+                btnElement.disabled = disable;
+            }
         }
 
         // Auto Refresh logic for Render environment state syncing
         function startAutoRefresh() {
             refreshInterval = setInterval(() => {
-                // Silently check if page needs update or reload
                 location.reload();
             }, 10000);
         }
@@ -445,75 +466,134 @@
             }
         }
 
-        // API Action Handlers
-        function updateGlobalPassword() {
+        // API Action Handlers (Refactored to Async/Await for better error handling)
+        async function updateGlobalPassword() {
             const newPass = document.getElementById('new_global_pass_input').value.trim();
+            const btn = document.getElementById('btn-update-pass');
+            
             if(!newPass) return showToast("يرجى إدخال كلمة سر صالحة", true);
             if(!confirm("هل أنت متأكد من تغيير كلمة سر دخول الموقع بالكامل؟")) return;
             
-            fetch('/api/admin/update_global_pass', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({new_global_pass: newPass, pass: p})
-            }).then(res => {
-                if(res.ok) { showToast("تم حفظ كلمة السر الجديدة بنجاح ✅"); setTimeout(() => location.reload(), 1000); }
-                else { showToast("حدث خطأ في الصلاحيات أو الجلسة", true); }
-            }).catch(() => showToast("فشل الاتصال بالخادم", true));
+            toggleButtonState(btn, true);
+            try {
+                const res = await fetch('/api/admin/update_global_pass', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({new_global_pass: newPass, pass: p})
+                });
+                
+                if(res.ok) { 
+                    showToast("تم حفظ كلمة السر الجديدة بنجاح ✅"); 
+                    setTimeout(() => location.reload(), 1000); 
+                } else { 
+                    showToast("حدث خطأ في الصلاحيات أو الجلسة", true); 
+                    toggleButtonState(btn, false);
+                }
+            } catch (err) {
+                showToast("فشل الاتصال بالخادم", true);
+                toggleButtonState(btn, false);
+            }
         }
 
-        function deleteRoom(roomId, roomName) {
+        async function deleteRoom(roomId, roomName, btnElement) {
             if(!confirm(`هل أنت متأكد من حذف الغرفة [${roomName}] نهائياً بكل محتوياتها؟`)) return;
-            fetch('/api/admin/delete_room', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({room_id: roomId, pass: p})
-            }).then(res => {
-                if(res.ok) { showToast("تم حذف الغرفة بنجاح 🧹"); setTimeout(() => location.reload(), 800); }
-                else { showToast("فشل حذف الغرفة", true); }
-            });
+            
+            toggleButtonState(btnElement, true);
+            try {
+                const res = await fetch('/api/admin/delete_room', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({room_id: roomId, pass: p})
+                });
+
+                if(res.ok) { 
+                    showToast("تم حذف الغرفة بنجاح 🧹"); 
+                    setTimeout(() => location.reload(), 800); 
+                } else { 
+                    showToast("فشل حذف الغرفة", true); 
+                    toggleButtonState(btnElement, false);
+                }
+            } catch (err) {
+                showToast("فشل الاتصال بالخادم", true);
+                toggleButtonState(btnElement, false);
+            }
         }
 
-        function deleteLog(logId) {
+        async function deleteLog(logId, btnElement) {
             let msg = logId === 'all' 
                 ? "هل أنت متأكد من مسح جميع السجلات وحذف قائمة (آخر دخول) لجميع الغرف؟" 
                 : "هل تريد تأكيد مسح هذا السجل من النظام؟";
                 
             if(!confirm(msg)) return;
             
-            fetch('/api/admin/delete_log', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({log_id: logId, pass: p})
-            }).then(res => {
-                if(res.ok) { showToast("تم مسح السجل بنجاح ✅"); setTimeout(() => location.reload(), 800); }
-                else { showToast("فشل مسح السجل", true); }
-            });
+            toggleButtonState(btnElement, true);
+            try {
+                const res = await fetch('/api/admin/delete_log', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({log_id: logId, pass: p})
+                });
+
+                if(res.ok) { 
+                    showToast("تم مسح السجل بنجاح ✅"); 
+                    setTimeout(() => location.reload(), 800); 
+                } else { 
+                    showToast("فشل مسح السجل", true); 
+                    toggleButtonState(btnElement, false);
+                }
+            } catch (err) {
+                showToast("فشل الاتصال بالخادم", true);
+                toggleButtonState(btnElement, false);
+            }
         }
 
-        function doBan(devId, ipAddr) {
+        async function doBan(devId, ipAddr, btnElement) {
             if(!devId && !ipAddr) return showToast("يرجى إدخال بيانات حظر صالحة", true);
             if(!confirm("تأكيد إجراء الحظر وطرد المستخدم؟")) return;
             
-            fetch('/api/ban', {
-                method: 'POST', 
-                headers: {'Content-Type': 'application/json'}, 
-                body: JSON.stringify({device_id: devId, ip: ipAddr, pass: p})
-            }).then(res => {
-                if(res.ok) { showToast("تم الحظر بنجاح 🚫"); setTimeout(() => location.reload(), 800); }
-                else { showToast("فشل تنفيذ الحظر", true); }
-            });
+            toggleButtonState(btnElement, true);
+            try {
+                const res = await fetch('/api/ban', {
+                    method: 'POST', 
+                    headers: {'Content-Type': 'application/json'}, 
+                    body: JSON.stringify({device_id: devId, ip: ipAddr, pass: p})
+                });
+
+                if(res.ok) { 
+                    showToast("تم الحظر بنجاح 🚫"); 
+                    setTimeout(() => location.reload(), 800); 
+                } else { 
+                    showToast("فشل تنفيذ الحظر", true); 
+                    toggleButtonState(btnElement, false);
+                }
+            } catch (err) {
+                showToast("فشل الاتصال بالخادم", true);
+                toggleButtonState(btnElement, false);
+            }
         }
 
-        function doUnban(devId, ipAddr) {
+        async function doUnban(devId, ipAddr, btnElement) {
             if(!confirm("هل تريد إلغاء الحظر عن هذا الهدف؟")) return;
-            fetch('/api/unban', {
-                method: 'POST', 
-                headers: {'Content-Type': 'application/json'}, 
-                body: JSON.stringify({device_id: devId, ip: ipAddr, pass: p})
-            }).then(res => {
-                if(res.ok) { showToast("تم إلغاء الحظر بنجاح ✅"); setTimeout(() => location.reload(), 800); }
-                else { showToast("فشل إلغاء الحظر", true); }
-            });
+            
+            toggleButtonState(btnElement, true);
+            try {
+                const res = await fetch('/api/unban', {
+                    method: 'POST', 
+                    headers: {'Content-Type': 'application/json'}, 
+                    body: JSON.stringify({device_id: devId, ip: ipAddr, pass: p})
+                });
+
+                if(res.ok) { 
+                    showToast("تم إلغاء الحظر بنجاح ✅"); 
+                    setTimeout(() => location.reload(), 800); 
+                } else { 
+                    showToast("فشل إلغاء الحظر", true); 
+                    toggleButtonState(btnElement, false);
+                }
+            } catch (err) {
+                showToast("فشل الاتصال بالخادم", true);
+                toggleButtonState(btnElement, false);
+            }
         }
     </script>
 </body>
