@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة التحكم والسيطرة | Promise Control Panel</title>
+    <style>
+        :root {
+            --bg-main: #0b141a;
+            --card-bg: #1f2c33;
+            --border-color: #2a3942;
+            --accent-green: #00a884;
+            --accent-red: #ff4b4b;
+            --accent-orange: #e67e22;
+            --accent-blue: #3498db;
+            --text-main: #e9edef;
+            --text-muted: #8696a0;
+        }
+
+        body { 
+            background: var(--bg-main); 
+            color: var(--text-main); 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            padding: 15px; 
+            margin: 0; 
+            box-sizing: border-box; 
+            font-size: 14px;
+        }
+
+        /* Top Header & Refresh Control */
+        .header-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+            background: var(--card-bg);
+            padding: 15px 20px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+        }
+        h1 { color: var(--accent-green); font-size: 20px; margin: 0; display: flex; align-items: center; gap: 8px; }
+        
+        .control-btns { display: flex; gap: 10px; align-items: center; }
+
+        /* Stats Overview Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: var(--card-bg);
+            padding: 12px 15px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            text-align: center;
+        }
+        .stat-card .num { font-size: 22px; font-weight: bold; color: var(--accent-green); margin-top: 4px; }
+        .stat-card .label { font-size: 12px; color: var(--text-muted); }
+
+        /* Cards and Sections */
+        .box { 
+            background: var(--card-bg); 
+            padding: 18px; 
+            border-radius: 10px; 
+            margin-bottom: 18px; 
+            border: 1px solid var(--border-color); 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+        }
+        h2 { color: var(--accent-green); margin-top: 0; margin-bottom: 12px; font-size: 16px; display: flex; align-items: center; justify-content: space-between; }
+        
+        /* Form Inputs & Buttons */
+        input[type="text"] { 
+            padding: 10px 12px; 
+            border-radius: 6px; 
+            border: 1px solid var(--border-color); 
+            background: #2a3942; 
+            color: white; 
+            width: 100%; 
+            box-sizing: border-box;
+            outline: none;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+        input[type="text"]:focus { border-color: var(--accent-green); }
+
+        .btn {
+            border: none;
+            padding: 8px 14px;
+            cursor: pointer;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 13px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            transition: opacity 0.2s, transform 0.1s;
+        }
+        .btn:active { transform: scale(0.98); }
+        .btn:hover { opacity: 0.9; }
+
+        .btn-ban { background: var(--accent-red); color: white; }
+        .btn-ip { background: var(--accent-orange); color: white; }
+        .btn-unban { background: var(--accent-green); color: white; }
+        .btn-blue { background: var(--accent-blue); color: white; }
+        .btn-secondary { background: #374248; color: var(--text-main); }
+
+        /* Responsive Tables */
+        .table-responsive { 
+            width: 100%; 
+            overflow-x: auto; 
+            -webkit-overflow-scrolling: touch; 
+            margin-top: 10px; 
+            border-radius: 6px; 
+            border: 1px solid var(--border-color);
+        }
+        table { width: 100%; border-collapse: collapse; min-width: 650px; }
+        th, td { border-bottom: 1px solid var(--border-color); padding: 10px 12px; text-align: center; font-size: 13px; }
+        th { background: #2a3942; color: var(--text-main); font-weight: 600; white-space: nowrap; }
+        tr:hover { background: rgba(255, 255, 255, 0.02); }
+
+        code { 
+            background: #111b21; 
+            padding: 3px 6px; 
+            border-radius: 4px; 
+            color: #ffbc00; 
+            font-size: 12px; 
+            font-family: monospace;
+            word-break: break-all;
+        }
+
+        .badge-proxy {
+            background: rgba(52, 152, 219, 0.2);
+            color: var(--accent-blue);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            margin-right: 4px;
+        }
+
+        /* Search Filter Input */
+        .search-box {
+            margin-bottom: 10px;
+        }
+
+        /* Toast Notifications */
+        #toast {
+            visibility: hidden;
+            min-width: 250px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 8px;
+            padding: 12px;
+            position: fixed;
+            z-index: 9999;
+            left: 50%;
+            bottom: 30px;
+            transform: translateX(-50%);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            font-size: 14px;
+        }
+        #toast.show {
+            visibility: visible;
+            animation: fadein 0.3s, fadeout 0.3s 2.7s;
+        }
+
+        @keyframes fadein { from { bottom: 0; opacity: 0; } to { bottom: 30px; opacity: 1; } }
+        @keyframes fadeout { from { bottom: 30px; opacity: 1; } to { bottom: 0; opacity: 0; } }
+    </style>
+</head>
+<body>
+
+    <div class="header-bar">
+        <h1>🛡️ لوحة التحكم والسيطرة المزدوجة <span class="badge-proxy">Render Ready</span></h1>
+        <div class="control-btns">
+            <button class="btn btn-secondary" id="auto-refresh-btn" onclick="toggleAutoRefresh()">
+                🔄 تحديث تلقائي: <span id="refresh-status">مفعل (10ث)</span>
+            </button>
+            <button class="btn btn-blue" onclick="location.reload()">تحديث الآن ⚡</button>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="label">المتواجدون الآن</div>
+            <div class="num">{{ online|length }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">الغرف النشطة</div>
+            <div class="num" style="color: var(--accent-blue);">{{ rooms|length }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">سجل الزيارات</div>
+            <div class="num" style="color: var(--accent-orange);">{{ history|length }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">المحظورون</div>
+            <div class="num" style="color: var(--accent-red);">{{ banned_devs|length + banned_ips|length }}</div>
+        </div>
+    </div>
+
+    <!-- Site Protection Settings -->
+    <div class="box" style="border-color: var(--accent-green);">
+        <h2>إعدادات حماية الموقع العامة 🔒</h2>
+        <p style="margin: 0 0 10px 0; font-size: 13px; color: var(--text-muted);">
+            كلمة سر دخول الموقع الحالية هي: <strong style="color: var(--accent-green);">{{ global_pass }}</strong>
+        </p>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <input type="text" id="new_global_pass_input" placeholder="اكتب كلمة سر الموقع الجديدة هنا..." style="flex: 1; min-width: 200px;">
+            <button class="btn btn-unban" onclick="updateGlobalPassword()">تعديل وحفظ 💾</button>
+        </div>
+    </div>
+
+    <!-- Quick Ban Form -->
+    <div class="box">
+        <h2>حظر يدوي مباشر 🚫</h2>
+        <input type="text" id="manual_input" placeholder="أدخل كود الـ Device ID أو IP شبكة الزائر..." class="search-box">
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button class="btn btn-ban" style="flex: 1; padding: 10px;" onclick="doBan(document.getElementById('manual_input').value, null)">حظر كـ جهاز 📱</button>
+            <button class="btn btn-ip" style="flex: 1; padding: 10px;" onclick="doBan(null, document.getElementById('manual_input').value)">حظر كـ IP 🌐</button>
+        </div>
+    </div>
+
+    <!-- Active Users Table -->
+    <div class="box">
+        <h2>المتواجدون الآن (أونلاين) 🟢</h2>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>المستخدم</th>
+                        <th>IP الشبكة (Proxied)</th>
+                        <th>بصمة الجهاز (Device ID)</th>
+                        <th>الغرفة الحالية</th>
+                        <th>الإجراءات السريعة</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in online %}
+                    <tr>
+                        <td style="font-weight: bold;">{{ u.user }}</td>
+                        <td><code>{{ u.ip }}</code></td>
+                        <td><code>{{ u.device_id }}</code></td>
+                        <td style="color: var(--accent-green); font-weight: bold;">{{ u.room }}</td>
+                        <td>
+                            <button class="btn btn-ban" onclick="doBan('{{ u.device_id }}', null)">حظر جهاز</button>
+                            <button class="btn btn-ip" onclick="doBan(null, '{{ u.ip }}')">حظر IP</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% if not online %}
+                    <tr><td colspan="5" style="color: var(--text-muted);">لا يوجد متصلون حالياً في الغرف</td></tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Chat Rooms Management -->
+    <div class="box">
+        <h2>إدارة غرف المحادثة الموجودة 💬</h2>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>معرف الغرفة</th>
+                        <th>اسم الغرفة</th>
+                        <th>كلمة سر الغرفة</th>
+                        <th>التحكم بالنظام</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in rooms %}
+                    <tr>
+                        <td>{{ r.id }}</td>
+                        <td style="font-weight: bold; color: var(--accent-green);">{{ r.name }}</td>
+                        <td><code>{{ r.password }}</code></td>
+                        <td><button class="btn btn-ban" onclick="deleteRoom('{{ r.id }}', '{{ r.name }}')">حذف الغرفة نهائياً 🗑️</button></td>
+                    </tr>
+                    {% endfor %}
+                    {% if not rooms %}
+                    <tr><td colspan="4" style="color: var(--text-muted);">لا توجد غرف منشأة حالياً في النظام</td></tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Historical Visitors Log -->
+    <div class="box">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 10px;">
+            <h2 style="margin: 0;">أجهزة وزوار دخلوا سابقاً (السجل التاريخي) 📜</h2>
+            <button class="btn btn-ban" style="background: #c0392b;" onclick="deleteLog('all')">مسح السجل بالكامل 🧹</button>
+        </div>
+        
+        <input type="text" id="history-search" placeholder="تصفية السجل (أدخل اسم، IP، أو بصمة...)" class="search-box" onkeyup="filterTable('history-search', 'history-table')">
+
+        <div class="table-responsive">
+            <table id="history-table">
+                <thead>
+                    <tr>
+                        <th>الاسم</th>
+                        <th>الـ IP</th>
+                        <th>البصمة</th>
+                        <th>الغرفة</th>
+                        <th>وقت الزيارة</th>
+                        <th>الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for h in history %}
+                    <tr>
+                        <td>{{ h.username }}</td>
+                        <td><code>{{ h.ip_address }}</code></td>
+                        <td><code>{{ h.device_id }}</code></td>
+                        <td style="color: var(--accent-green); font-weight: bold;">{{ h.room_name }}</td>
+                        <td style="direction: ltr; font-size: 12px; color: var(--text-muted);">{{ h.last_visit }}</td>
+                        <td>
+                            <button class="btn btn-ban" onclick="doBan('{{ h.device_id }}', null)">جهاز</button>
+                            <button class="btn btn-ip" onclick="doBan(null, '{{ h.ip_address }}')">IP</button>
+                            <button class="btn btn-secondary" style="font-size: 11px;" onclick="deleteLog('{{ h.id }}')">حذف 🗑️</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% if not history %}
+                    <tr><td colspan="6" style="color: var(--text-muted);">السجل التاريخي فارغ</td></tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Ban List Section -->
+    <div class="box" style="border-color: var(--accent-red);">
+        <h2 style="color: var(--accent-red);">قائمة المحظورين (Ban List) ⛔</h2>
+        
+        <h3 style="font-size: 14px; color: var(--text-main); margin-top: 15px;">الأجهزة المحظورة (Device IDs):</h3>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr><th>بصمة الجهاز (Device ID)</th><th>الإجراء</th></tr>
+                </thead>
+                <tbody>
+                    {% for b in banned_devs %}
+                    <tr>
+                        <td><code>{{ b.device_id }}</code></td>
+                        <td><button class="btn btn-unban" onclick="doUnban('{{ b.device_id }}', null)">إلغاء حظر الجهاز</button></td>
+                    </tr>
+                    {% endfor %}
+                    {% if not banned_devs %}
+                    <tr><td colspan="2" style="color: var(--text-muted);">لا توجد أجهزة محظورة</td></tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        <h3 style="font-size: 14px; color: var(--text-main); margin-top: 15px;">عناوين IP المحظورة:</h3>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr><th>عنوان IP الشبكة</th><th>الإجراء</th></tr>
+                </thead>
+                <tbody>
+                    {% for b in banned_ips %}
+                    <tr>
+                        <td><code>{{ b.ip_address }}</code></td>
+                        <td><button class="btn btn-unban" onclick="doUnban(null, '{{ b.ip_address }}')">إلغاء حظر IP</button></td>
+                    </tr>
+                    {% endfor %}
+                    {% if not banned_ips %}
+                    <tr><td colspan="2" style="color: var(--text-muted);">لا توجد عناوين IP محظورة</td></tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="toast"></div>
+
+    <script>
+        const p = new URLSearchParams(window.location.search).get('pass');
+        let refreshInterval = null;
+        let autoRefreshActive = true;
+
+        // Toast Notification System
+        function showToast(msg, isError = false) {
+            const toast = document.getElementById("toast");
+            toast.innerText = msg;
+            toast.style.backgroundColor = isError ? "#c0392b" : "#27ae60";
+            toast.className = "show";
+            setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 3000);
+        }
+
+        // Auto Refresh logic for Render environment state syncing
+        function startAutoRefresh() {
+            refreshInterval = setInterval(() => {
+                // Silently check if page needs update or reload
+                location.reload();
+            }, 10000);
+        }
+
+        function toggleAutoRefresh() {
+            const statusText = document.getElementById("refresh-status");
+            if (autoRefreshActive) {
+                clearInterval(refreshInterval);
+                autoRefreshActive = false;
+                statusText.innerText = "معطل";
+                statusText.style.color = "#e74c3c";
+            } else {
+                startAutoRefresh();
+                autoRefreshActive = true;
+                statusText.innerText = "مفعل (10ث)";
+                statusText.style.color = "#2ecc71";
+            }
+        }
+
+        // Initialize auto refresh on load
+        startAutoRefresh();
+
+        // Search/Filter Table Function
+        function filterTable(inputId, tableId) {
+            const input = document.getElementById(inputId);
+            const filter = input.value.toLowerCase();
+            const table = document.getElementById(tableId);
+            const tr = table.getElementsByTagName("tr");
+
+            for (let i = 1; i < tr.length; i++) {
+                let show = false;
+                const tds = tr[i].getElementsByTagName("td");
+                for (let j = 0; j < tds.length; j++) {
+                    if (tds[j]) {
+                        if (tds[j].textContent.toLowerCase().indexOf(filter) > -1) {
+                            show = true;
+                            break;
+                        }
+                    }
+                }
+                tr[i].style.display = show ? "" : "none";
+            }
+        }
+
+        // API Action Handlers
+        function updateGlobalPassword() {
+            const newPass = document.getElementById('new_global_pass_input').value.trim();
+            if(!newPass) return showToast("يرجى إدخال كلمة سر صالحة", true);
+            if(!confirm("هل أنت متأكد من تغيير كلمة سر دخول الموقع بالكامل؟")) return;
+            
+            fetch('/api/admin/update_global_pass', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({new_global_pass: newPass, pass: p})
+            }).then(res => {
+                if(res.ok) { showToast("تم حفظ كلمة السر الجديدة بنجاح ✅"); setTimeout(() => location.reload(), 1000); }
+                else { showToast("حدث خطأ في الصلاحيات أو الجلسة", true); }
+            }).catch(() => showToast("فشل الاتصال بالخادم", true));
+        }
+
+        function deleteRoom(roomId, roomName) {
+            if(!confirm(`هل أنت متأكد من حذف الغرفة [${roomName}] نهائياً بكل محتوياتها؟`)) return;
+            fetch('/api/admin/delete_room', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({room_id: roomId, pass: p})
+            }).then(res => {
+                if(res.ok) { showToast("تم حذف الغرفة بنجاح 🧹"); setTimeout(() => location.reload(), 800); }
+                else { showToast("فشل حذف الغرفة", true); }
+            });
+        }
+
+        function deleteLog(logId) {
+            let msg = logId === 'all' 
+                ? "هل أنت متأكد من مسح جميع السجلات وحذف قائمة (آخر دخول) لجميع الغرف؟" 
+                : "هل تريد تأكيد مسح هذا السجل من النظام؟";
+                
+            if(!confirm(msg)) return;
+            
+            fetch('/api/admin/delete_log', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({log_id: logId, pass: p})
+            }).then(res => {
+                if(res.ok) { showToast("تم مسح السجل بنجاح ✅"); setTimeout(() => location.reload(), 800); }
+                else { showToast("فشل مسح السجل", true); }
+            });
+        }
+
+        function doBan(devId, ipAddr) {
+            if(!devId && !ipAddr) return showToast("يرجى إدخال بيانات حظر صالحة", true);
+            if(!confirm("تأكيد إجراء الحظر وطرد المستخدم؟")) return;
+            
+            fetch('/api/ban', {
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'}, 
+                body: JSON.stringify({device_id: devId, ip: ipAddr, pass: p})
+            }).then(res => {
+                if(res.ok) { showToast("تم الحظر بنجاح 🚫"); setTimeout(() => location.reload(), 800); }
+                else { showToast("فشل تنفيذ الحظر", true); }
+            });
+        }
+
+        function doUnban(devId, ipAddr) {
+            if(!confirm("هل تريد إلغاء الحظر عن هذا الهدف؟")) return;
+            fetch('/api/unban', {
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'}, 
+                body: JSON.stringify({device_id: devId, ip: ipAddr, pass: p})
+            }).then(res => {
+                if(res.ok) { showToast("تم إلغاء الحظر بنجاح ✅"); setTimeout(() => location.reload(), 800); }
+                else { showToast("فشل إلغاء الحظر", true); }
+            });
+        }
+    </script>
+</body>
+</html>
