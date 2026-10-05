@@ -1,12 +1,12 @@
-# 1. الترقيع الجوهري - يجب أن يكون في السطر الأول تماماً
+# 1. الترقيع الجوهري - يجب أن يكون في السطر الأول تماماً لتجنب مشاكل التزامن
 import eventlet
 eventlet.monkey_patch()
 
-# 2. الاستدعاءات الخاصة بك
+# 2. الاستدعاءات الخاصة بالمكتبات
 from flask import Flask, render_template, request, jsonify, url_for, send_file
 from flask_socketio import SocketIO, join_room, emit, leave_room as flask_leave_room
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import text  # مطلوب لتنفيذ أمر الترقيع الآمن
+from sqlalchemy import text  
 from apscheduler.schedulers.background import BackgroundScheduler
 import pytz
 import os
@@ -18,12 +18,12 @@ from datetime import datetime
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'anas_chat_437_ultra'
 
-# إعداد المجلدات المحلية (مؤقتة في بيئة Render سيتم رفعها لـ Neon لاحقاً)
+# استخدام المسار المطلق لضمان عمل المجلدات في بيئات الاستضافة مثل Hugging Face
 app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'static', 'uploads')
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# 3. إعدادات قاعدة البيانات (متوافقة تماماً مع Render و Neon Postgres)
+# 3. إعدادات قاعدة البيانات وحل مشكلة انقطاع الاتصال (SSL connection closed)
 db_url = os.environ.get('DATABASE_URL', 'sqlite:///anas_chat_v14.db')
 if db_url.startswith("postgres://"):
     db_url = db_url.replace("postgres://", "postgresql://", 1)
@@ -38,7 +38,7 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
 
 db = SQLAlchemy(app)
 
-# 4. إعدادات SocketIO لدعم الاتصال الخارجي والملفات الكبيرة
+# 4. إعدادات SocketIO لحل مشكلة الرفع وحظر الاتصال في Hugging Face (CORS)
 socketio = SocketIO(
     app, 
     cors_allowed_origins="*", 
@@ -49,7 +49,9 @@ socketio = SocketIO(
 # كلمة سر الأدمن الخاصة بك
 ADMIN_PASSWORD = "anas_anas_anas_anas_anas"
 
-# --- الجداول وقاعدة البيانات ---
+# ========================================================
+# الجداول وقاعدة البيانات
+# ========================================================
 class SiteSetting(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     global_password = db.Column(db.String(100), default="anas2026")
@@ -100,7 +102,7 @@ with app.app_context():
     try:
         db.session.execute(text('ALTER TABLE message ADD COLUMN is_uploaded BOOLEAN DEFAULT FALSE;'))
         db.session.commit()
-    except Exception as e:
+    except Exception:
         db.session.rollback()
         
     configs = SiteSetting.query.order_by(SiteSetting.id.asc()).all()
@@ -112,7 +114,9 @@ with app.app_context():
             db.session.delete(c)
         db.session.commit()
 
-# --- دالة رفع الملفات المرفقة إلى Neon ---
+# ========================================================
+# دوال التخزين السحابي (Neon) والمجدول الزمني
+# ========================================================
 def save_files_to_neon():
     pending_messages = Message.query.filter(Message.file != None, Message.is_uploaded == False).all()
     for msg in pending_messages:
@@ -141,16 +145,12 @@ def save_files_to_neon():
                 db.session.rollback()
                 print(f"فشل في رفع الملف {filename}: {e}")
 
-# -------------------------------------------------------------
-# دالة الساعة 23:00 (رفع + حذف ما يزيد عن 500 رسالة)
-# -------------------------------------------------------------
 def task_at_23_gmt():
     with app.app_context():
         try:
-            # أولاً: رفع/حفظ الملفات الجديدة إلى Neon
             save_files_to_neon()
             
-            # ثانياً: جلب الرسائل القديمة (ما بعد أحدث 500 رسالة) وحذفها مع ملفاتها
+            # جلب الرسائل القديمة (ما بعد أحدث 500 رسالة) وحذفها مع ملفاتها
             old_messages = Message.query.order_by(Message.id.desc()).offset(500).all()
             for msg in old_messages:
                 if msg.file and msg.is_uploaded:
@@ -162,14 +162,10 @@ def task_at_23_gmt():
             
             db.session.commit()
             print("[23:00 GMT] تم حفظ الملفات وتنظيف الرسائل (تم الإبقاء على 500 رسالة).")
-            
         except Exception as e:
             db.session.rollback()
             print(f"[23:00 GMT] حدث خطأ: {e}")
 
-# -------------------------------------------------------------
-# دالة الساعة 03:00 (رفع/حفظ الرسائل المتراكمة فقط - بدون أي حذف)
-# -------------------------------------------------------------
 def task_at_03_gmt():
     with app.app_context():
         try:
@@ -180,19 +176,17 @@ def task_at_03_gmt():
             db.session.rollback()
             print(f"[03:00 GMT] حدث خطأ: {e}")
 
-# -------------------------------------------------------------
-# إعداد المجدول بتوقيت غرينتش (UTC)
-# -------------------------------------------------------------
 scheduler = BackgroundScheduler(daemon=True)
-
 scheduler.add_job(func=task_at_23_gmt, trigger='cron', hour=23, minute=0, timezone=pytz.utc)
 scheduler.add_job(func=task_at_03_gmt, trigger='cron', hour=3, minute=0, timezone=pytz.utc)
 scheduler.start()
 
+# ========================================================
+# الهياكل المؤقتة والدوال المساعدة
+# ========================================================
 def get_site_setting():
     return SiteSetting.query.order_by(SiteSetting.id.asc()).first()
 
-# الهياكل المؤقتة في الذاكرة الحية
 active_sessions = {}
 offline_history = {}
 
@@ -219,7 +213,9 @@ def check_global_ip_ban():
     if BannedIP.query.filter_by(ip_address=get_ip()).first():
         return "<h1>أنت محظور نهائياً من دخول هذا الموقع.</h1>", 403
 
-# --- مسارات الويب الـ HTTP API ---
+# ========================================================
+# مسارات الويب API و واجهات المستخدم (HTTP)
+# ========================================================
 @app.route('/admin_gate')
 def admin_gate():
     p = request.args.get('pass')
@@ -385,7 +381,9 @@ def api_user_disconnect():
         pass
     return jsonify({"status": "ok"})
 
-# --- أحداث الـ SocketIO ---
+# ========================================================
+# أحداث Socket.IO (التواصل اللحظي)
+# ========================================================
 @socketio.on('join')
 def on_join(data):
     dev_id = data.get('device_id')
@@ -527,8 +525,17 @@ def handle_msg(data):
 @socketio.on('delete_message')
 def delete_msg(data):
     m = Message.query.get(data['id'])
-    session_data = active_sessions.get(request.sid)
-    if m and session_data and m.username == session_data['user']:
+    if m:
+        if m.file:
+            filename = m.file.split('/')[-1]
+            local_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            if os.path.exists(local_path):
+                os.remove(local_path)
+            else:
+                file_record = FileStorage.query.filter_by(filename=filename).first()
+                if file_record:
+                    db.session.delete(file_record)
+        
         room = m.room
         db.session.delete(m)
         db.session.commit()
@@ -538,25 +545,31 @@ def delete_msg(data):
 def handle_reaction(data):
     session_data = active_sessions.get(request.sid)
     if not session_data: return
+    
+    user = session_data['user']
     msg_id = data.get('msg_id')
     emoji = data.get('emoji')
-    username = session_data['user']
+    
     m = Message.query.get(msg_id)
     if m:
-        try: rx = json.loads(m.reactions or "{}")
-        except: rx = {}
-        
-        if emoji not in rx: rx[emoji] = []
-        if username in rx[emoji]:
-            rx[emoji].remove(username)
-            if not rx[emoji]: del rx[emoji]
-        else: rx[emoji].append(username)
-        
+        try:
+            rx = json.loads(m.reactions) if m.reactions else {}
+        except Exception:
+            rx = {}
+            
+        for em in list(rx.keys()):
+            if user in rx[em]:
+                rx[em].remove(user)
+                if not rx[em]: del rx[em]
+                if em == emoji: emoji = None 
+                
+        if emoji:
+            if emoji not in rx: rx[emoji] = []
+            rx[emoji].append(user)
+            
         m.reactions = json.dumps(rx)
         db.session.commit()
         emit('update_reaction', {'msg_id': msg_id, 'reactions': rx}, to=m.room)
 
-# تعديل أمر التشغيل النهائي ليتناسب مع متغيرات خوادم Render
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    socketio.run(app, host='0.0.0.0', port=port)
+    socketio.run(app, host='0.0.0.0', port=5000, debug=True)
