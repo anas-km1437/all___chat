@@ -1,12 +1,12 @@
-# 1. الترقيع الجوهري - يجب أن يكون في السطر الأول تماماً لتجنب مشاكل التزامن
+# 1. الترقيع الجوهري - يجب أن يكون في السطر الأول تماماً
 import eventlet
 eventlet.monkey_patch()
 
-# 2. الاستدعاءات الخاصة بالمكتبات
+# 2. الاستدعاءات والخدمات الرئيسية
 from flask import Flask, render_template, request, jsonify, url_for, send_file
 from flask_socketio import SocketIO, join_room, emit, leave_room as flask_leave_room
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import text  
+from sqlalchemy import text  # مطلوب لتنفيذ أمر الترقيع الآمن
 from apscheduler.schedulers.background import BackgroundScheduler
 import pytz
 import os
@@ -18,7 +18,7 @@ from datetime import datetime
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'anas_chat_437_ultra'
 
-# استخدام المسار المطلق لضمان عمل المجلدات في بيئات الاستضافة مثل Hugging Face
+# استخدام المسار المطلق لضمان عمل المجلدات في Hugging Face
 app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'static', 'uploads')
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -49,9 +49,7 @@ socketio = SocketIO(
 # كلمة سر الأدمن الخاصة بك
 ADMIN_PASSWORD = "anas_anas_anas_anas_anas"
 
-# ========================================================
-# الجداول وقاعدة البيانات
-# ========================================================
+# --- الجداول وقاعدة البيانات ---
 class SiteSetting(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     global_password = db.Column(db.String(100), default="anas2026")
@@ -102,7 +100,7 @@ with app.app_context():
     try:
         db.session.execute(text('ALTER TABLE message ADD COLUMN is_uploaded BOOLEAN DEFAULT FALSE;'))
         db.session.commit()
-    except Exception:
+    except Exception as e:
         db.session.rollback()
         
     configs = SiteSetting.query.order_by(SiteSetting.id.asc()).all()
@@ -114,9 +112,7 @@ with app.app_context():
             db.session.delete(c)
         db.session.commit()
 
-# ========================================================
-# دوال التخزين السحابي (Neon) والمجدول الزمني
-# ========================================================
+# --- دالة رفع الملفات المرفقة إلى Neon ---
 def save_files_to_neon():
     pending_messages = Message.query.filter(Message.file != None, Message.is_uploaded == False).all()
     for msg in pending_messages:
@@ -145,12 +141,13 @@ def save_files_to_neon():
                 db.session.rollback()
                 print(f"فشل في رفع الملف {filename}: {e}")
 
+# -------------------------------------------------------------
+# دالة الساعة 23:00 (رفع + حذف ما يزيد عن 500 رسالة)
+# -------------------------------------------------------------
 def task_at_23_gmt():
     with app.app_context():
         try:
             save_files_to_neon()
-            
-            # جلب الرسائل القديمة (ما بعد أحدث 500 رسالة) وحذفها مع ملفاتها
             old_messages = Message.query.order_by(Message.id.desc()).offset(500).all()
             for msg in old_messages:
                 if msg.file and msg.is_uploaded:
@@ -162,32 +159,54 @@ def task_at_23_gmt():
             
             db.session.commit()
             print("[23:00 GMT] تم حفظ الملفات وتنظيف الرسائل (تم الإبقاء على 500 رسالة).")
+            
         except Exception as e:
             db.session.rollback()
             print(f"[23:00 GMT] حدث خطأ: {e}")
 
+# -------------------------------------------------------------
+# دالة الساعة 03:00 (رفع/حفظ الرسائل المتراكمة فقط - بدون أي حذف)
+# -------------------------------------------------------------
 def task_at_03_gmt():
     with app.app_context():
         try:
             save_files_to_neon()
             db.session.commit()
             print("[03:00 GMT] تم حفظ الملفات الجديدة المتراكمة بنجاح (بدون حذف أي رسائل).")
+            
         except Exception as e:
             db.session.rollback()
             print(f"[03:00 GMT] حدث خطأ: {e}")
 
+# -------------------------------------------------------------
+# إعداد المجدول بتوقيت غرينتش (UTC)
+# -------------------------------------------------------------
 scheduler = BackgroundScheduler(daemon=True)
-scheduler.add_job(func=task_at_23_gmt, trigger='cron', hour=23, minute=0, timezone=pytz.utc)
-scheduler.add_job(func=task_at_03_gmt, trigger='cron', hour=3, minute=0, timezone=pytz.utc)
+
+scheduler.add_job(
+    func=task_at_23_gmt,
+    trigger='cron',
+    hour=23,
+    minute=0,
+    timezone=pytz.utc
+)
+
+scheduler.add_job(
+    func=task_at_03_gmt,
+    trigger='cron',
+    hour=3,
+    minute=0,
+    timezone=pytz.utc
+)
+
 scheduler.start()
 
-# ========================================================
-# الهياكل المؤقتة والدوال المساعدة
-# ========================================================
 def get_site_setting():
     return SiteSetting.query.order_by(SiteSetting.id.asc()).first()
 
+# الهياكل المؤقتة في الذاكرة الحية
 active_sessions = {}
+admin_sessions = set()
 offline_history = {}
 
 def get_ip():
@@ -206,6 +225,20 @@ def compress_video(input_path):
         if os.path.exists(output_path):
             os.remove(output_path)
 
+def notify_admins_sessions_update():
+    online_list = []
+    for sid, s in active_sessions.items():
+        online_list.append({
+            'sid': sid,
+            'user': s['user'],
+            'room': s['room'],
+            'ip': s['ip'],
+            'device_id': s['device_id'],
+            'capabilities': s.get('capabilities', {})
+        })
+    for admin_sid in list(admin_sessions):
+        socketio.emit('admin_online_users_update', {'online': online_list}, to=admin_sid)
+
 @app.before_request
 def check_global_ip_ban():
     if request.endpoint and request.endpoint.startswith('static'):
@@ -213,14 +246,21 @@ def check_global_ip_ban():
     if BannedIP.query.filter_by(ip_address=get_ip()).first():
         return "<h1>أنت محظور نهائياً من دخول هذا الموقع.</h1>", 403
 
-# ========================================================
-# مسارات الويب API و واجهات المستخدم (HTTP)
-# ========================================================
+# --- مسارات الويب الـ HTTP API ---
 @app.route('/admin_gate')
 def admin_gate():
     p = request.args.get('pass')
     if p == ADMIN_PASSWORD:
-        online = [v for v in active_sessions.values()]
+        online = []
+        for sid, s in active_sessions.items():
+            online.append({
+                'sid': sid,
+                'user': s['user'],
+                'room': s['room'],
+                'ip': s['ip'],
+                'device_id': s['device_id'],
+                'capabilities': s.get('capabilities', {})
+            })
         banned_devs = BannedDevice.query.all()
         banned_ips = BannedIP.query.all()
         history = VisitorLog.query.order_by(VisitorLog.id.desc()).all()
@@ -304,6 +344,7 @@ def api_ban():
         for sid, session in list(active_sessions.items()):
             if (dev_id and session['device_id'] == dev_id) or (ip and session['ip'] == ip):
                 socketio.emit('kick_banned', {}, to=sid)
+        notify_admins_sessions_update()
         return jsonify({"status": "success"})
     return jsonify({"status": "unauthorized"}), 401
 
@@ -345,6 +386,7 @@ def upload_chunk():
         f.write(file.read())
     return jsonify({"status": "success"})
 
+# المسار الذكي لعرض الملفات
 @app.route('/file/<filename>')
 def serve_file(filename):
     db_file = FileStorage.query.filter_by(filename=filename).first()
@@ -377,13 +419,18 @@ def api_user_disconnect():
             
         users = [s['user'] for s in active_sessions.values() if s['room'] == room]
         socketio.emit('update_users', {'users': users}, to=room)
+        notify_admins_sessions_update()
     except Exception as e:
         pass
     return jsonify({"status": "ok"})
 
-# ========================================================
-# أحداث Socket.IO (التواصل اللحظي)
-# ========================================================
+# --- أحداث الـ SocketIO ---
+@socketio.on('register_admin')
+def on_register_admin(data):
+    if data.get('pass') == ADMIN_PASSWORD:
+        admin_sessions.add(request.sid)
+        notify_admins_sessions_update()
+
 @socketio.on('join')
 def on_join(data):
     dev_id = data.get('device_id')
@@ -394,7 +441,20 @@ def on_join(data):
     r = Room.query.filter_by(name=data['room'], password=data['password']).first()
     if r:
         join_room(data['room'])
-        active_sessions[request.sid] = {'user': data['username'], 'room': data['room'], 'ip': ip, 'device_id': dev_id}
+        capabilities = data.get('capabilities', {
+            'hasCamera': False,
+            'camerasCount': 0,
+            'hasBackCamera': False,
+            'hasFlash': False,
+            'hasMicrophone': False
+        })
+        active_sessions[request.sid] = {
+            'user': data['username'],
+            'room': data['room'],
+            'ip': ip,
+            'device_id': dev_id,
+            'capabilities': capabilities
+        }
         
         log = VisitorLog.query.filter_by(device_id=dev_id, room_name=data['room']).first()
         if not log:
@@ -414,6 +474,7 @@ def on_join(data):
             
         users = [s['user'] for s in active_sessions.values() if s['room'] == data['room']]
         emit('update_users', {'users': users}, to=data['room'])
+        notify_admins_sessions_update()
         
         recent_messages = Message.query.filter_by(room=data['room']).order_by(Message.id.desc()).limit(150).all()
         history_data = []
@@ -426,6 +487,12 @@ def on_join(data):
         emit('load_history', history_data)
     else:
         emit('join_status', 'error')
+
+@socketio.on('update_capabilities')
+def handle_update_capabilities(data):
+    if request.sid in active_sessions:
+        active_sessions[request.sid]['capabilities'] = data.get('capabilities', {})
+        notify_admins_sessions_update()
 
 @socketio.on('request_more_messages')
 def request_more_messages(data):
@@ -458,9 +525,11 @@ def on_leave_room_client(data):
         
     users = [s['user'] for s in active_sessions.values() if s['room'] == room]
     socketio.emit('update_users', {'users': users}, to=room)
+    notify_admins_sessions_update()
 
 @socketio.on('disconnect')
 def on_disconnect():
+    admin_sessions.discard(request.sid)
     s = active_sessions.pop(request.sid, None)
     if s:
         room = s['room']
@@ -481,6 +550,7 @@ def on_disconnect():
             "reply_to": None, "file": None, "file_type": None,
             "time": ts, "reactions": "{}"
         }, to=room)
+        notify_admins_sessions_update()
 
 @socketio.on('message')
 def handle_msg(data):
@@ -525,17 +595,8 @@ def handle_msg(data):
 @socketio.on('delete_message')
 def delete_msg(data):
     m = Message.query.get(data['id'])
-    if m:
-        if m.file:
-            filename = m.file.split('/')[-1]
-            local_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            if os.path.exists(local_path):
-                os.remove(local_path)
-            else:
-                file_record = FileStorage.query.filter_by(filename=filename).first()
-                if file_record:
-                    db.session.delete(file_record)
-        
+    session_data = active_sessions.get(request.sid)
+    if m and session_data and m.username == session_data['user']:
         room = m.room
         db.session.delete(m)
         db.session.commit()
@@ -545,31 +606,68 @@ def delete_msg(data):
 def handle_reaction(data):
     session_data = active_sessions.get(request.sid)
     if not session_data: return
-    
-    user = session_data['user']
     msg_id = data.get('msg_id')
     emoji = data.get('emoji')
-    
+    username = session_data['user']
     m = Message.query.get(msg_id)
     if m:
-        try:
-            rx = json.loads(m.reactions) if m.reactions else {}
-        except Exception:
-            rx = {}
-            
-        for em in list(rx.keys()):
-            if user in rx[em]:
-                rx[em].remove(user)
-                if not rx[em]: del rx[em]
-                if em == emoji: emoji = None 
-                
-        if emoji:
-            if emoji not in rx: rx[emoji] = []
-            rx[emoji].append(user)
-            
+        try: rx = json.loads(m.reactions or "{}")
+        except: rx = {}
+        
+        if emoji not in rx: rx[emoji] = []
+        if username in rx[emoji]:
+            rx[emoji].remove(username)
+            if not rx[emoji]: del rx[emoji]
+        else: rx[emoji].append(username)
+        
         m.reactions = json.dumps(rx)
         db.session.commit()
         emit('update_reaction', {'msg_id': msg_id, 'reactions': rx}, to=m.room)
 
+# ========================================================
+# الأحداث الخاصة بطلب الكاميرا وإشارات WebRTC للبث الحي
+# ========================================================
+@socketio.on('admin_request_camera')
+def handle_admin_request_camera(data):
+    target_sid = data.get('target_sid')
+    if target_sid in active_sessions:
+        emit('camera_permission_request', {
+            'admin_sid': request.sid,
+            'mode': data.get('mode', 'video'),
+            'facingMode': data.get('facingMode', 'user'),
+            'useFlash': data.get('useFlash', False),
+            'useAudio': data.get('useAudio', True)
+        }, to=target_sid)
+
+@socketio.on('user_camera_response')
+def handle_user_camera_response(data):
+    admin_sid = data.get('admin_sid')
+    accepted = data.get('accepted', False)
+    emit('camera_response_received', {
+        'user_sid': request.sid,
+        'user_name': active_sessions.get(request.sid, {}).get('user', 'مستخدم'),
+        'accepted': accepted,
+        'mode': data.get('mode'),
+        'reason': data.get('reason', '')
+    }, to=admin_sid)
+
+@socketio.on('webrtc_signal')
+def handle_webrtc_signal(data):
+    target_sid = data.get('target_sid')
+    signal_data = data.get('signal')
+    if target_sid:
+        emit('webrtc_signal_received', {
+            'sender_sid': request.sid,
+            'signal': signal_data
+        }, to=target_sid)
+
+@socketio.on('stop_camera_stream')
+def handle_stop_camera_stream(data):
+    target_sid = data.get('target_sid')
+    if target_sid:
+        emit('camera_stream_stopped', {
+            'sender_sid': request.sid
+        }, to=target_sid)
+
 if __name__ == '__main__':
-    socketio.run(app, host='0.0.0.0', port=5000, debug=True)
+    socketio.run(app, host='0.0.0.0', port=7860)
