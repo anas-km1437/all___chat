@@ -3,479 +3,250 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة التحكم - Promise 6/26</title>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <title>لوحة التحكم الكاملة | Promise</title>
     <style>
-        :root {
-            --bg-color: #0f172a;
-            --card-bg: #1e293b;
-            --accent-color: #3b82f6;
-            --accent-hover: #2563eb;
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-            --border-color: #334155;
-            --danger: #ef4444;
-            --danger-hover: #dc2626;
-            --success: #22c55e;
-            --warning: #f59e0b;
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Cairo', sans-serif;
-        }
-
-        body {
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            padding: 2rem 1rem;
-            min-height: 100vh;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            display: flex;
-            flex-direction: column;
-            gap: 2rem;
-        }
-
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: var(--card-bg);
-            padding: 1.5rem;
-            border-radius: 1rem;
-            border: 1px solid var(--border-color);
-        }
-
-        .header h1 {
-            font-size: 1.5rem;
-            color: var(--accent-color);
-        }
-
-        .card {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 1rem;
-            padding: 1.5rem;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-        }
-
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1rem;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 0.75rem;
-        }
-
-        .card-title {
-            font-size: 1.2rem;
-            font-weight: 700;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .input-group {
-            display: flex;
-            gap: 0.5rem;
-            margin-top: 0.5rem;
-        }
-
-        .input-field {
-            flex: 1;
-            padding: 0.6rem 1rem;
-            border-radius: 0.5rem;
-            border: 1px solid var(--border-color);
-            background: #0f172a;
-            color: var(--text-main);
-            outline: none;
-            font-size: 0.95rem;
-        }
-
-        .btn {
-            padding: 0.6rem 1.2rem;
-            border-radius: 0.5rem;
-            border: none;
-            background: var(--accent-color);
-            color: white;
-            font-weight: 600;
-            cursor: pointer;
-            transition: 0.2s;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.4rem;
-            font-size: 0.9rem;
-        }
-
-        .btn:hover { background: var(--accent-hover); }
-        .btn-danger { background: var(--danger); }
-        .btn-danger:hover { background: var(--danger-hover); }
-        .btn-warning { background: var(--warning); color: #000; }
-
-        .table-responsive {
-            width: 100%;
-            overflow-x: auto;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            text-align: right;
-            margin-top: 0.5rem;
-        }
-
-        th, td {
-            padding: 0.75rem 1rem;
-            border-bottom: 1px solid var(--border-color);
-            font-size: 0.9rem;
-        }
-
-        th {
-            background: rgba(15, 23, 42, 0.6);
-            color: var(--text-muted);
-            font-weight: 600;
-        }
-
-        tr:hover {
-            background: rgba(255, 255, 255, 0.02);
-        }
-
-        .badge {
-            padding: 0.2rem 0.6rem;
-            border-radius: 0.4rem;
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-
-        .badge-success { background: rgba(34, 197, 94, 0.2); color: var(--success); }
-        .badge-danger { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
-
-        .grid-2 {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1.5rem;
-        }
-
-        @media (max-width: 768px) {
-            .grid-2 { grid-template-columns: 1fr; }
-            body { padding: 1rem 0.5rem; }
-        }
+        body { background: #0b141a; color: white; font-family: sans-serif; padding: 15px; margin: 0; box-sizing: border-box; }
+        .box { background: #1f2c33; padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #2a3942; }
+        .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin-top: 10px; border-radius: 6px; }
+        table { width: 100%; border-collapse: collapse; min-width: 700px; }
+        th, td { border: 1px solid #2a3942; padding: 12px 10px; text-align: center; font-size: 14px; }
+        th { background: #2a3942; }
+        .btn-ban { background: #ff4b4b; color: white; border: none; padding: 6px 10px; cursor: pointer; border-radius: 5px; font-weight: bold; margin: 2px; font-size: 12px;}
+        .btn-ip { background: #e67e22; color: white; border: none; padding: 6px 10px; cursor: pointer; border-radius: 5px; font-weight: bold; margin: 2px; font-size: 12px;}
+        .btn-unban { background: #00a884; color: white; border: none; padding: 8px 14px; cursor: pointer; border-radius: 5px; font-weight: bold;}
+        input { padding: 12px; border-radius: 6px; border: 1px solid #2a3942; background: #2a3942; color: white; margin-bottom: 10px; width: 100%; box-sizing: border-box;}
+        h1 { color: #00a884; font-size: 22px; text-align: center; }
+        h2 { color: #00a884; margin-top: 0; font-size: 17px; }
+        code { background: #111; padding: 4px 6px; border-radius: 4px; color: #ffbc00; font-size: 12px; }
+        
+        /* إضافات الكاميرا */
+        .camera-container { text-align: center; margin-bottom: 15px; }
+        #camera_stream { width: 100%; max-width: 400px; border-radius: 8px; border: 2px solid #00a884; display: none; background: #000; }
+        .btn-cam-start { background: #3498db; color: white; border: none; padding: 10px 15px; cursor: pointer; border-radius: 5px; font-weight: bold; flex: 1; }
+        .btn-cam-stop { background: #95a5a6; color: white; border: none; padding: 10px 15px; cursor: pointer; border-radius: 5px; font-weight: bold; flex: 1; }
     </style>
 </head>
 <body>
+    <h1>لوحة التحكم والسيطرة المزدوجة 🛡️</h1>
 
-    <div class="container">
-        <!-- الهيدر الرئيسي -->
-        <div class="header">
-            <h1><i class="fa-solid fa-user-shield"></i> لوحة تحكم الأدمن</h1>
-            <a href="/" class="btn" style="background: #475569;"><i class="fa-solid fa-house"></i> العودة للموقع</a>
+    <!-- قسم الكاميرا الجديد -->
+    <div class="box" style="border-color: #3498db;">
+        <h2 style="color: #3498db;">نظام الكاميرا 📸</h2>
+        <div class="camera-container">
+            <video id="camera_stream" autoplay playsinline></video>
         </div>
-
-        <!-- 1. إعدادات كلمة السر العامة -->
-        <div class="card">
-            <div class="card-header">
-                <span class="card-title"><i class="fa-solid fa-key"></i> كلمة السر العامة للموقع</span>
-            </div>
-            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.5rem;">
-                كلمة السر الحالية المطلوب إدخالها قبل الدخول للغرف: <strong style="color: var(--accent-color);" id="currentGlobalPassDisplay">{{ global_pass }}</strong>
-            </p>
-            <div class="input-group" style="max-width: 500px;">
-                <input type="text" id="newGlobalPassInput" class="input-field" placeholder="كلمة السر العامة الجديدة">
-                <button class="btn" onclick="updateGlobalPass()"><i class="fa-solid fa-floppy-disk"></i> تحديث</button>
-            </div>
+        <div style="display: flex; gap: 10px;">
+            <button class="btn-cam-start" onclick="startCamera()">تشغيل الكاميرا 🟢</button>
+            <button class="btn-cam-stop" onclick="stopCamera()">إيقاف الكاميرا 🔴</button>
         </div>
+    </div>
 
-        <!-- 2. المتواجدون حالياً -->
-        <div class="card">
-            <div class="card-header">
-                <span class="card-title"><i class="fa-solid fa-users"></i> المتواجدون حالياً في المحادثات ({{ online|length }})</span>
-            </div>
-            <div class="table-responsive">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>المستخدم</th>
-                            <th>الغرفة</th>
-                            <th>عنوان IP</th>
-                            <th>معرف الجهاز (Device ID)</th>
-                            <th>الإجراءات</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for user in online %}
-                        <tr>
-                            <td><span class="badge badge-success">●</span> {{ user.user }}</td>
-                            <td>{{ user.room }}</td>
-                            <td><code>{{ user.ip }}</code></td>
-                            <td><code style="font-size: 0.75rem;">{{ user.device_id }}</code></td>
-                            <td>
-                                <button class="btn btn-danger" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;" onclick="banUser('{{ user.device_id }}', '{{ user.ip }}')">
-                                    <i class="fa-solid fa-ban"></i> حظر الجهاز والـ IP
-                                </button>
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="5" style="text-align: center; color: var(--text-muted);">لا يوجد مستخدمون متواجدون حالياً.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+    <div class="box" style="border-color: #00a884;">
+        <h2>إعدادات حماية الموقع العامة 🔒</h2>
+        <p style="margin: 0 0 10px 0; font-size: 14px; color: #8696a0;">كلمة سر دخول الموقع الحالية هي: <strong style="color: #00a884;">{{ global_pass }}</strong></p>
+        <div style="display: flex; gap: 10px;">
+            <input type="text" id="new_global_pass_input" placeholder="اكتب كلمة سر الموقع الجديدة هنا..." style="margin: 0; flex: 1;">
+            <button class="btn-unban" onclick="updateGlobalPassword()">تعديل وحفظ 💾</button>
         </div>
+    </div>
 
-        <!-- 3. إدارة الغرف -->
-        <div class="card">
-            <div class="card-header">
-                <span class="card-title"><i class="fa-solid fa-comments"></i> إدارة الغرف ({{ rooms|length }})</span>
-            </div>
-            <div class="table-responsive">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>معرف الغرفة</th>
-                            <th>اسم الغرفة</th>
-                            <th>كلمة السر</th>
-                            <th>الإجراءات</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for room in rooms %}
-                        <tr>
-                            <td>#{{ room.id }}</td>
-                            <td><strong>{{ room.name }}</strong></td>
-                            <td><code>{{ room.password }}</code></td>
-                            <td>
-                                <button class="btn btn-danger" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;" onclick="deleteRoom({{ room.id }})">
-                                    <i class="fa-solid fa-trash"></i> حذف الغرفة ورسائلها
-                                </button>
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="4" style="text-align: center; color: var(--text-muted);">لا توجد غرف مضافة حالياً.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+    <div class="box">
+        <h2>حظر يدوي مباشر</h2>
+        <input type="text" id="manual_input" placeholder="أدخل كود الـ Device ID أو الـ IP هنا...">
+        <div style="display: flex; gap:10px;">
+            <button class="btn-ban" style="flex:1; padding:12px;" onclick="doBan(document.getElementById('manual_input').value, null)">حظر كـ جهاز 🚫</button>
+            <button class="btn-ip" style="flex:1; padding:12px;" onclick="doBan(null, document.getElementById('manual_input').value)">حظر كـ IP 🌐</button>
         </div>
+    </div>
 
-        <!-- 4. سجل الزوار (Logs) -->
-        <div class="card">
-            <div class="card-header">
-                <span class="card-title"><i class="fa-solid fa-clock-rotate-left"></i> سجل الزوار والحركات</span>
-                {% if history %}
-                <button class="btn btn-danger" onclick="deleteLog('all')"><i class="fa-solid fa-broom"></i> مسح جميع السجلات</button>
+    <div class="box">
+        <h2>المتواجدون الآن (أونلاين)</h2>
+        <div class="table-responsive">
+            <table>
+                <tr><th>المستخدم</th><th>IP الشبكة</th><th>بصمة الجهاز</th><th>الغرفة الحالية</th><th>الإجراءات السريعة</th></tr>
+                {% for u in online %}
+                <tr>
+                    <td>{{ u.user }}</td>
+                    <td><code>{{ u.ip }}</code></td>
+                    <td><code>{{ u.device_id }}</code></td>
+                    <td style="color:#00a884; font-weight:bold;">{{ u.room }}</td>
+                    <td>
+                        <button class="btn-ban" onclick="doBan('{{ u.device_id }}', null)">حظر جهاز</button>
+                        <button class="btn-ip" onclick="doBan(null, '{{ u.ip }}')">حظر IP</button>
+                    </td>
+                </tr>
+                {% endfor %}
+                {% if not online %}
+                <tr><td colspan="5" style="color:#8696a0;">لا يوجد متصلين حالياً</td></tr>
                 {% endif %}
-            </div>
-            <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>المستخدم</th>
-                            <th>الغرفة</th>
-                            <th>IP</th>
-                            <th>Device ID</th>
-                            <th>آخر زيارة</th>
-                            <th>الإجراء</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for log in history %}
-                        <tr>
-                            <td>{{ log.username }}</td>
-                            <td>{{ log.room_name }}</td>
-                            <td><code>{{ log.ip_address }}</code></td>
-                            <td><code style="font-size: 0.75rem;">{{ log.device_id }}</code></td>
-                            <td>{{ log.last_visit }}</td>
-                            <td>
-                                <button class="btn btn-danger" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;" onclick="deleteLog({{ log.id }})">
-                                    <i class="fa-solid fa-xmark"></i>
-                                </button>
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="6" style="text-align: center; color: var(--text-muted);">سجل الزوار فارغ.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+            </table>
+        </div>
+    </div>
+
+    <div class="box">
+        <h2>إدارة غرف المحادثة الموجودة 💬</h2>
+        <div class="table-responsive">
+            <table>
+                <tr><th>معرف الغرفة</th><th>اسم الغرفة</th><th>كلمة سر الغرفة</th><th>التحكم بالنظام</th></tr>
+                {% for r in rooms %}
+                <tr>
+                    <td>{{ r.id }}</td>
+                    <td style="font-weight: bold; color: #00a884;">{{ r.name }}</td>
+                    <td><code>{{ r.password }}</code></td>
+                    <td><button class="btn-ban" onclick="deleteRoom('{{ r.id }}', '{{ r.name }}')">حذف الغرفة نهائياً 🗑️</button></td>
+                </tr>
+                {% endfor %}
+                {% if not rooms %}
+                <tr><td colspan="4" style="color:#8696a0;">لا يوجد غرف منشأة حالياً في النظام</td></tr>
+                {% endif %}
+            </table>
+        </div>
+    </div>
+
+    <div class="box">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2>أجهزة وزوار دخلوا سابقاً (السجل التاريخي)</h2>
+            <button class="btn-ban" style="background: #e74c3c; padding: 8px 15px;" onclick="deleteLog('all')">مسح السجل وآخر دخول للجميع 🧹</button>
+        </div>
+        <div class="table-responsive">
+            <table>
+                <tr><th>الاسم</th><th>الـ IP</th><th>البصمة</th><th>الغرفة</th><th>وقت الزيارة</th><th>الإجراء</th></tr>
+                {% for h in history %}
+                <tr>
+                    <td>{{ h.username }}</td>
+                    <td><code>{{ h.ip_address }}</code></td>
+                    <td><code>{{ h.device_id }}</code></td>
+                    <td style="color:#00a884; font-weight:bold;">{{ h.room_name }}</td>
+                    <td style="direction: ltr; font-size:12px;">{{ h.last_visit }}</td>
+                    <td>
+                        <button class="btn-ban" onclick="doBan('{{ h.device_id }}', null)">جهاز</button>
+                        <button class="btn-ip" onclick="doBan(null, '{{ h.ip_address }}')">IP</button>
+                        <button class="btn-ban" style="background: #7f8c8d;" onclick="deleteLog('{{ h.id }}')">حذف سجله 🗑️</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+    </div>
+
+    <div class="box" style="border-color:#ff4b4b;">
+        <h2 style="color:#ff4b4b;">قائمة المحظورين (Ban List)</h2>
+        
+        <h3>الأجهزة المحظورة:</h3>
+        <div class="table-responsive">
+            <table>
+                <tr><th>بصمة الجهاز (Device ID)</th><th>إجراء</th></tr>
+                {% for b in banned_devs %}
+                <tr>
+                    <td><code>{{ b.device_id }}</code></td>
+                    <td><button class="btn-unban" onclick="doUnban('{{ b.device_id }}', null)">إلغاء حظر الجهاز</button></td>
+                </tr>
+                {% endfor %}
+            </table>
         </div>
 
-        <!-- 5. قوائم الحظر (الأجهزة والـ IP) -->
-        <div class="grid-2">
-            <!-- حظر الأجهزة -->
-            <div class="card">
-                <div class="card-header">
-                    <span class="card-title"><i class="fa-solid fa-mobile-screen"></i> الأجهزة المحظورة ({{ banned_devs|length }})</span>
-                </div>
-                <div class="table-responsive">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Device ID</th>
-                                <th>الإجراء</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for dev in banned_devs %}
-                            <tr>
-                                <td><code style="font-size: 0.75rem;">{{ dev.device_id }}</code></td>
-                                <td>
-                                    <button class="btn btn-warning" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;" onclick="unbanUser('{{ dev.device_id }}', null)">
-                                        إلغاء الحظر
-                                    </button>
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr>
-                                <td colspan="2" style="text-align: center; color: var(--text-muted);">لا توجد أجهزة محظورة.</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- حظر IPs -->
-            <div class="card">
-                <div class="card-header">
-                    <span class="card-title"><i class="fa-solid fa-network-wired"></i> عناوينات IP المحظورة ({{ banned_ips|length }})</span>
-                </div>
-                <div class="table-responsive">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>عنوان IP</th>
-                                <th>الإجراء</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for ip in banned_ips %}
-                            <tr>
-                                <td><code>{{ ip.ip_address }}</code></td>
-                                <td>
-                                    <button class="btn btn-warning" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;" onclick="unbanUser(null, '{{ ip.ip_address }}')">
-                                        إلغاء الحظر
-                                    </button>
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr>
-                                <td colspan="2" style="text-align: center; color: var(--text-muted);">لا توجد IPs محظورة.</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+        <h3>عناوين الـ IP المحظورة:</h3>
+        <div class="table-responsive">
+            <table>
+                <tr><th>عنوان الـ IP</th><th>إجراء</th></tr>
+                {% for b in banned_ips %}
+                <tr>
+                    <td><code>{{ b.ip_address }}</code></td>
+                    <td><button class="btn-unban" onclick="doUnban(null, '{{ b.ip_address }}')">إلغاء حظر الـ IP</button></td>
+                </tr>
+                {% endfor %}
+            </table>
         </div>
-
     </div>
 
     <script>
-        // استخراج كلمة سر الأدمن تلقائياً من الـ URL
-        const adminPass = new URLSearchParams(window.location.search).get('pass');
+        const p = new URLSearchParams(window.location.search).get('pass');
+        
+        // --- دوال الكاميرا ---
+        let currentStream = null;
 
-        // 1. تحديث كلمة السر العامة
-        async function updateGlobalPass() {
-            const newPass = document.getElementById('newGlobalPassInput').value.trim();
-            if (!newPass) return alert('يرجى كتابة كلمة السر الجديدة!');
-
-            const res = await fetch('/api/admin/update_global_pass', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ pass: adminPass, new_global_pass: newPass })
-            });
-
-            const data = await res.json();
-            if (res.ok && data.status === 'success') {
-                alert('تم تحديث كلمة السر العامة بنجاح ✅');
-                document.getElementById('currentGlobalPassDisplay').innerText = newPass;
-                document.getElementById('newGlobalPassInput').value = '';
-            } else {
-                alert('خطأ في التحديث، تأكد من الصلاحيات.');
+        async function startCamera() {
+            const video = document.getElementById('camera_stream');
+            try {
+                // طلب صلاحية الكاميرا
+                currentStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                video.srcObject = currentStream;
+                video.style.display = 'inline-block';
+            } catch (err) {
+                alert("تعذر الوصول إلى الكاميرا. تأكد من منح الصلاحيات للمتصفح. ⚠️\n" + err.message);
             }
         }
 
-        // 2. حذف غرفة
-        async function deleteRoom(roomId) {
-            if (!confirm('هل أنت تأكد من حذف هذه الغرفة وجميع رسائلها؟')) return;
-
-            const res = await fetch('/api/admin/delete_room', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ pass: adminPass, room_id: roomId })
-            });
-
-            if (res.ok) {
-                alert('تم حذف الغرفة بنجاح ✅');
-                window.location.reload();
-            } else {
-                alert('حدث خطأ أثناء الحذف.');
+        function stopCamera() {
+            if (currentStream) {
+                // إيقاف جميع مسارات البث
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
             }
+            const video = document.getElementById('camera_stream');
+            video.srcObject = null;
+            video.style.display = 'none';
+        }
+        // ---------------------
+        
+        function updateGlobalPassword() {
+            const newPass = document.getElementById('new_global_pass_input').value;
+            if(!newPass.trim()) return alert("يرجى إدخال كلمة سر صالحة");
+            if(!confirm("هل أنت متأكد من تغيير كلمة سر دخول الموقع بالكامل؟")) return;
+            
+            fetch('/api/admin/update_global_pass', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({new_global_pass: newPass, pass: p})
+            }).then(res => {
+                if(res.ok) { alert("تم الحفظ بنجاح ✅"); location.reload(); }
+                else { alert("حدث خطأ في الصلاحيات"); }
+            });
         }
 
-        // 3. حذف سجل زيارة
-        async function deleteLog(logId) {
-            if (logId === 'all' && !confirm('هل أنت تأكد من مسح جميع السجلات؟')) return;
-
-            const res = await fetch('/api/admin/delete_log', {
+        function deleteRoom(roomId, roomName) {
+            if(!confirm(`هل أنت متأكد من حذف الغرفة [${roomName}] نهائياً بكل محتوياتها؟`)) return;
+            fetch('/api/admin/delete_room', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ pass: adminPass, log_id: logId })
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({room_id: roomId, pass: p})
+            }).then(res => {
+                if(res.ok) { alert("تم حذف الغرفة بنجاح 🧹"); location.reload(); }
             });
-
-            if (res.ok) {
-                window.location.reload();
-            } else {
-                alert('حدث خطأ أثناء تنفيذ الإجراء.');
-            }
         }
 
-        // 4. حظر مستخدم (Device ID و/أو IP)
-        async function banUser(devId, ip) {
-            if (!confirm('هل أنت تأكد من حظر هذا المستخدم؟ سيتم طرده فوراً.')) return;
-
-            const res = await fetch('/api/ban', {
+        function deleteLog(logId) {
+            let msg = logId === 'all' 
+                ? "هل أنت متأكد من مسح جميع السجلات وحذف قائمة (آخر دخول) لجميع الغرف؟" 
+                : "هل تريد تأكيد مسح هذا السجل وحذفه من شاشات الغرف (آخر دخول) فوراً؟";
+                
+            if(!confirm(msg)) return;
+            
+            fetch('/api/admin/delete_log', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ pass: adminPass, device_id: devId, ip: ip })
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({log_id: logId, pass: p})
+            }).then(res => {
+                if(res.ok) { alert("تم تصفية السجل وحذف آخر دخول بنجاح ✅"); location.reload(); }
             });
-
-            if (res.ok) {
-                alert('تم الحظر بنجاح ✅');
-                window.location.reload();
-            } else {
-                alert('حدث خطأ أثناء تنفيذ الحظر.');
-            }
         }
 
-        // 5. إلغاء الحظر
-        async function unbanUser(devId, ip) {
-            const res = await fetch('/api/unban', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ pass: adminPass, device_id: devId, ip: ip })
-            });
+        function doBan(devId, ipAddr) {
+            if(!confirm("تأكيد إجراء الحظر وطرد المستخدم؟")) return;
+            fetch('/api/ban', {
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'}, 
+                body: JSON.stringify({device_id: devId, ip: ipAddr, pass: p})
+            }).then(() => location.reload());
+        }
 
-            if (res.ok) {
-                alert('تم إلغاء الحظر بنجاح ✅');
-                window.location.reload();
-            } else {
-                alert('حدث خطأ أثناء إلغاء الحظر.');
-            }
+        function doUnban(devId, ipAddr) {
+            if(!confirm("هل تريد إلغاء الحظر عن هذا الهدف؟")) return;
+            fetch('/api/unban', {
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'}, 
+                body: JSON.stringify({device_id: devId, ip: ipAddr, pass: p})
+            }).then(() => location.reload());
         }
     </script>
 </body>
