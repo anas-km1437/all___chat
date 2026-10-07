@@ -1,6 +1,6 @@
 # 1. الترقيع الجوهري - يجب أن يكون في السطر الأول تماماً
 import eventlet
-eventlet.monkey_patch()
+from gevent import monkey; monkey.patch_all()
 
 # 2. الاستدعاءات الخاصة بك
 from flask import Flask, render_template, request, jsonify, url_for, send_file, Response
