@@ -12,13 +12,10 @@ WORKDIR /app
 # نسخ الاعتماديات
 COPY requirements.txt .
 
-# 🔥 [الحل النهائي لقفل الخطأ]: إجبار نظام الحاوية على تحديث pip وتثبيت عمال الـ eventlet بشكل مستقل تماماً رغماً عن أي قيود
-RUN pip install --no-cache-dir --upgrade pip
-RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install --no-cache-dir flask-cors
-RUN pip install --no-cache-dir eventlet
-RUN pip install --no-cache-dir gunicorn
-RUN pip install --no-cache-dir "gunicorn[eventlet]"
+# تثبيت المحركات المستقرة وتحديث pip يدوياً رغماً عن أي حظر
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir flask-cors gevent gunicorn[gevent]
 
 # تثبيت أداة FFmpeg المخصصة لتشغيل ميزة سحب الكاميرا السحابية
 RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
@@ -33,5 +30,5 @@ RUN chmod -R 777 /app
 # فتح البورت الخاص بـ Render
 EXPOSE $PORT
 
-# 🔥 [تنسيق التشغيل الصارم]: تشغيل السيرفر بصيغة الـ Shell الصافية والمباشرة المعتمدة لحل تعارض التنفيذ
-CMD gunicorn -k eventlet -w 1 -b 0.0.0.0:10000 app:app
+# تشغيل السيرفر باستخدام محرك gevent المستقر والآمن 100% على منصة Render
+CMD gunicorn -k gevent -w 1 -b 0.0.0.0:10000 app:app
