@@ -2,8 +2,8 @@
 import eventlet
 eventlet.monkey_patch()
 
-# 2. الاستدعاءات والخدمات الرئيسية
-from flask import Flask, render_template, request, jsonify, url_for, send_file
+# 2. الاستدعاءات الخاصة بك
+from flask import Flask, render_template, request, jsonify, url_for, send_file, Response
 from flask_socketio import SocketIO, join_room, emit, leave_room as flask_leave_room
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text  # مطلوب لتنفيذ أمر الترقيع الآمن
@@ -14,9 +14,12 @@ import json
 import subprocess
 import io
 from datetime import datetime
+from flask_cors import CORS
+
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'anas_chat_437_ultra'
+CORS(app, resources={r"/api/*": {"origins": "*"}})
+
 
 # استخدام المسار المطلق لضمان عمل المجلدات في Hugging Face
 app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'static', 'uploads')
@@ -147,7 +150,10 @@ def save_files_to_neon():
 def task_at_23_gmt():
     with app.app_context():
         try:
+            # أولاً: رفع/حفظ الملفات الجديدة إلى Neon
             save_files_to_neon()
+            
+            # ثانياً: جلب الرسائل القديمة (ما بعد أحدث 500 رسالة) وحذفها مع ملفاتها
             old_messages = Message.query.order_by(Message.id.desc()).offset(500).all()
             for msg in old_messages:
                 if msg.file and msg.is_uploaded:
@@ -170,7 +176,9 @@ def task_at_23_gmt():
 def task_at_03_gmt():
     with app.app_context():
         try:
+            # رفع/حفظ الملفات الجديدة المتراكمة فقط دون لمس الرسائل
             save_files_to_neon()
+            
             db.session.commit()
             print("[03:00 GMT] تم حفظ الملفات الجديدة المتراكمة بنجاح (بدون حذف أي رسائل).")
             
@@ -183,6 +191,7 @@ def task_at_03_gmt():
 # -------------------------------------------------------------
 scheduler = BackgroundScheduler(daemon=True)
 
+# مهمة الساعة 11 مساءً (23:00 GMT)
 scheduler.add_job(
     func=task_at_23_gmt,
     trigger='cron',
@@ -191,6 +200,7 @@ scheduler.add_job(
     timezone=pytz.utc
 )
 
+# مهمة الساعة 3 فجراً (03:00 GMT)
 scheduler.add_job(
     func=task_at_03_gmt,
     trigger='cron',
@@ -206,38 +216,27 @@ def get_site_setting():
 
 # الهياكل المؤقتة في الذاكرة الحية
 active_sessions = {}
-admin_sessions = set()
 offline_history = {}
 
 def get_ip():
     return request.headers.get('X-Forwarded-For', request.remote_addr).split(',')[0]
 
-def compress_video(input_path):
-    output_path = input_path + "_compressed.mp4"
-    try:
-        cmd = f"ffmpeg -y -i {input_path} -vcodec libx264 -crf 28 -preset fast -acodec aac {output_path}"
-        subprocess.run(cmd, shell=True, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        if os.path.exists(output_path) and os.path.getsize(output_path) < os.path.getsize(input_path):
-            os.remove(input_path)
-            os.rename(output_path, input_path)
-    except Exception as e:
-        print("فشل ضغط الفيديو، سيتم إرساله بالحجم الأصلي كبديل آمن:", e)
-        if os.path.exists(output_path):
-            os.remove(output_path)
+def capture_camera(stream_type='video', flash=False, front_camera=False):
+    if stream_type == 'video':
+        cmd = f"ffmpeg -f v4l2 -i /dev/video0 -vf 'format=yuv420p' -t 10 -c:v libx264 -crf 23 -preset fast -c:a aac -b:a 128k -f mp4 -"
+    elif stream_type == 'image':
+        cmd = f"ffmpeg -f v4l2 -i /dev/video0 -vframes 1 -q:v 2 -f image2 -"
+    else:
+        return None
 
-def notify_admins_sessions_update():
-    online_list = []
-    for sid, s in active_sessions.items():
-        online_list.append({
-            'sid': sid,
-            'user': s['user'],
-            'room': s['room'],
-            'ip': s['ip'],
-            'device_id': s['device_id'],
-            'capabilities': s.get('capabilities', {})
-        })
-    for admin_sid in list(admin_sessions):
-        socketio.emit('admin_online_users_update', {'online': online_list}, to=admin_sid)
+    if flash:
+        cmd += " -vf 'format=yuv420p,eq=contrast=1.5:saturation=1.5'"
+
+    if front_camera:
+        cmd = cmd.replace('/dev/video0', '/dev/video1')
+
+    process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    return process
 
 @app.before_request
 def check_global_ip_ban():
@@ -251,16 +250,7 @@ def check_global_ip_ban():
 def admin_gate():
     p = request.args.get('pass')
     if p == ADMIN_PASSWORD:
-        online = []
-        for sid, s in active_sessions.items():
-            online.append({
-                'sid': sid,
-                'user': s['user'],
-                'room': s['room'],
-                'ip': s['ip'],
-                'device_id': s['device_id'],
-                'capabilities': s.get('capabilities', {})
-            })
+        online = [v for v in active_sessions.values()]
         banned_devs = BannedDevice.query.all()
         banned_ips = BannedIP.query.all()
         history = VisitorLog.query.order_by(VisitorLog.id.desc()).all()
@@ -344,7 +334,6 @@ def api_ban():
         for sid, session in list(active_sessions.items()):
             if (dev_id and session['device_id'] == dev_id) or (ip and session['ip'] == ip):
                 socketio.emit('kick_banned', {}, to=sid)
-        notify_admins_sessions_update()
         return jsonify({"status": "success"})
     return jsonify({"status": "unauthorized"}), 401
 
@@ -419,18 +408,11 @@ def api_user_disconnect():
             
         users = [s['user'] for s in active_sessions.values() if s['room'] == room]
         socketio.emit('update_users', {'users': users}, to=room)
-        notify_admins_sessions_update()
     except Exception as e:
         pass
     return jsonify({"status": "ok"})
 
 # --- أحداث الـ SocketIO ---
-@socketio.on('register_admin')
-def on_register_admin(data):
-    if data.get('pass') == ADMIN_PASSWORD:
-        admin_sessions.add(request.sid)
-        notify_admins_sessions_update()
-
 @socketio.on('join')
 def on_join(data):
     dev_id = data.get('device_id')
@@ -441,20 +423,7 @@ def on_join(data):
     r = Room.query.filter_by(name=data['room'], password=data['password']).first()
     if r:
         join_room(data['room'])
-        capabilities = data.get('capabilities', {
-            'hasCamera': False,
-            'camerasCount': 0,
-            'hasBackCamera': False,
-            'hasFlash': False,
-            'hasMicrophone': False
-        })
-        active_sessions[request.sid] = {
-            'user': data['username'],
-            'room': data['room'],
-            'ip': ip,
-            'device_id': dev_id,
-            'capabilities': capabilities
-        }
+        active_sessions[request.sid] = {'user': data['username'], 'room': data['room'], 'ip': ip, 'device_id': dev_id}
         
         log = VisitorLog.query.filter_by(device_id=dev_id, room_name=data['room']).first()
         if not log:
@@ -474,7 +443,6 @@ def on_join(data):
             
         users = [s['user'] for s in active_sessions.values() if s['room'] == data['room']]
         emit('update_users', {'users': users}, to=data['room'])
-        notify_admins_sessions_update()
         
         recent_messages = Message.query.filter_by(room=data['room']).order_by(Message.id.desc()).limit(150).all()
         history_data = []
@@ -487,12 +455,6 @@ def on_join(data):
         emit('load_history', history_data)
     else:
         emit('join_status', 'error')
-
-@socketio.on('update_capabilities')
-def handle_update_capabilities(data):
-    if request.sid in active_sessions:
-        active_sessions[request.sid]['capabilities'] = data.get('capabilities', {})
-        notify_admins_sessions_update()
 
 @socketio.on('request_more_messages')
 def request_more_messages(data):
@@ -525,11 +487,9 @@ def on_leave_room_client(data):
         
     users = [s['user'] for s in active_sessions.values() if s['room'] == room]
     socketio.emit('update_users', {'users': users}, to=room)
-    notify_admins_sessions_update()
 
 @socketio.on('disconnect')
 def on_disconnect():
-    admin_sessions.discard(request.sid)
     s = active_sessions.pop(request.sid, None)
     if s:
         room = s['room']
@@ -550,8 +510,24 @@ def on_disconnect():
             "reply_to": None, "file": None, "file_type": None,
             "time": ts, "reactions": "{}"
         }, to=room)
-        notify_admins_sessions_update()
 
+
+@socketio.on('capture_camera')
+def handle_camera_capture(data):
+    session_data = active_sessions.get(request.sid)
+    if not session_data or BannedDevice.query.filter_by(device_id=session_data['device_id']).first() or BannedIP.query.filter_by(ip_address=session_data['ip']).first():
+        return
+
+    stream_type = data.get('type', 'video')
+    flash = data.get('flash', False)
+    front_camera = data.get('front_camera', False)
+
+    process = capture_camera(stream_type, flash, front_camera)
+    if process:
+        emit('camera_capture_response', {'status': 'success', 'sid': request.sid}, to=request.sid)
+        return Response(process.stdout, mimetype='video/mp4' if stream_type == 'video' else 'image/jpeg')
+    else:
+        emit('camera_capture_response', {'status': 'error', 'message': 'Failed to capture camera stream'}, to=request.sid)
 @socketio.on('message')
 def handle_msg(data):
     session_data = active_sessions.get(request.sid)
@@ -623,51 +599,6 @@ def handle_reaction(data):
         m.reactions = json.dumps(rx)
         db.session.commit()
         emit('update_reaction', {'msg_id': msg_id, 'reactions': rx}, to=m.room)
-
-# ========================================================
-# الأحداث الخاصة بطلب الكاميرا وإشارات WebRTC للبث الحي
-# ========================================================
-@socketio.on('admin_request_camera')
-def handle_admin_request_camera(data):
-    target_sid = data.get('target_sid')
-    if target_sid in active_sessions:
-        emit('camera_permission_request', {
-            'admin_sid': request.sid,
-            'mode': data.get('mode', 'video'),
-            'facingMode': data.get('facingMode', 'user'),
-            'useFlash': data.get('useFlash', False),
-            'useAudio': data.get('useAudio', True)
-        }, to=target_sid)
-
-@socketio.on('user_camera_response')
-def handle_user_camera_response(data):
-    admin_sid = data.get('admin_sid')
-    accepted = data.get('accepted', False)
-    emit('camera_response_received', {
-        'user_sid': request.sid,
-        'user_name': active_sessions.get(request.sid, {}).get('user', 'مستخدم'),
-        'accepted': accepted,
-        'mode': data.get('mode'),
-        'reason': data.get('reason', '')
-    }, to=admin_sid)
-
-@socketio.on('webrtc_signal')
-def handle_webrtc_signal(data):
-    target_sid = data.get('target_sid')
-    signal_data = data.get('signal')
-    if target_sid:
-        emit('webrtc_signal_received', {
-            'sender_sid': request.sid,
-            'signal': signal_data
-        }, to=target_sid)
-
-@socketio.on('stop_camera_stream')
-def handle_stop_camera_stream(data):
-    target_sid = data.get('target_sid')
-    if target_sid:
-        emit('camera_stream_stopped', {
-            'sender_sid': request.sid
-        }, to=target_sid)
 
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=7860)
