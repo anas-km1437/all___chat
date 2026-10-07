@@ -2,7 +2,7 @@ Flask
 Flask-SocketIO
 Flask-SQLAlchemy
 eventlet
-gunicorn
+gunicorn[eventlet]
 apscheduler
 pytz
 flask-cors
