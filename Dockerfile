@@ -12,10 +12,10 @@ WORKDIR /app
 # نسخ الاعتماديات
 COPY requirements.txt .
 
-# تثبيت المحركات المستقرة وتحديث pip يدوياً رغماً عن أي حظر
+# تثبيت كافة محركات التشغيل والاتصال بقاعدة البيانات لضمان عدم وجود أخطاء نقص حزم
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir flask-cors gevent gunicorn[gevent]
+    pip install --no-cache-dir flask-cors gevent gunicorn[gevent] psycopg2-binary
 
 # تثبيت أداة FFmpeg المخصصة لتشغيل ميزة سحب الكاميرا السحابية
 RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
