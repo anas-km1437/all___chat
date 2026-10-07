@@ -33,5 +33,6 @@ RUN chmod -R 777 /app
 # فتح البورت الخاص بـ Render
 EXPOSE $PORT
 
-# تشغيل التطبيق عبر gunicorn مع استخدام التنسيق الدقيق الصارم لعمال الـ eventlet والـ WebSockets على بورت Render الديناميكي
-CMD ["gunicorn", "--worker-class", "eventlet", "-w", "1", "--bind", "0.0.0.0:10000", "app:app"]
+# تشغيل التطبيق دون استخدام مصفوفة علامات التنصيص لتجنب تعارض التنفيذ في السيرفر السحابي
+CMD gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:10000 app:app
+
