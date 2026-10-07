@@ -14,9 +14,14 @@ WORKDIR /app
 
 # نسخ ملف الاعتماديات وتثبيت الحزم
 COPY requirements.txt .
-# تحديث أداة pip أولاً ثم تثبيت الحزم لضمان عدم وجود أخطاء في التوافق
+
+# تحديث أداة pip أولاً ثم تثبيت الحزم الأساسية وحقن الحزم المفقودة يدوياً لضمان حل أخطاء التوافق والـ CORS
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir flask-cors gunicorn[eventlet]
+
+# تثبيت أداة FFmpeg المخصصة لتشغيل ميزة سحب الكاميرا السحابية
+RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
 
 # نسخ باقي ملفات المشروع
 COPY . .
@@ -28,5 +33,5 @@ RUN chmod -R 777 /app
 # فتح البورت الخاص بـ Render
 EXPOSE $PORT
 
-# تشغيل التطبيق عبر gunicorn مع ربطه بمتغير البيئة الديناميكي PORT
-CMD gunicorn -k eventlet -w 1 -b 0.0.0.0:$PORT app:app
+# تشغيل التطبيق عبر gunicorn مع استخدام التنسيق الدقيق الصارم لعمال الـ eventlet والـ WebSockets على بورت Render الديناميكي
+CMD ["gunicorn", "--worker-class", "eventlet", "-w", "1", "--bind", "0.0.0.0:10000", "app:app"]
