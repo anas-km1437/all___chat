@@ -1,9 +1,9 @@
-# 1. الترقيع الجوهري - يجب أن يكون في السطر الأول تماماً
-import eventlet
-from gevent import monkey; monkey.patch_all()
+--- FILE 1: app.py ---
 
-# 2. الاستدعاءات الخاصة بك
-from flask import Flask, render_template, request, jsonify, url_for, send_file, Response
+import eventlet
+eventlet.monkey_patch()
+
+from flask import Flask, render_template, request, jsonify, url_for, send_file
 from flask_socketio import SocketIO, join_room, emit, leave_room as flask_leave_room
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text  # مطلوب لتنفيذ أمر الترقيع الآمن
@@ -14,19 +14,16 @@ import json
 import subprocess
 import io
 from datetime import datetime
-from flask_cors import CORS
-
 
 app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": "*"}})
-
+app.config['SECRET_KEY'] = 'anas_chat_437_ultra'
 
 # استخدام المسار المطلق لضمان عمل المجلدات في Hugging Face
 app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'static', 'uploads')
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# 3. إعدادات قاعدة البيانات وحل مشكلة انقطاع الاتصال (SSL connection closed)
+# إعدادات قاعدة البيانات وحل مشكلة انقطاع الاتصال (SSL connection closed)
 db_url = os.environ.get('DATABASE_URL', 'sqlite:///anas_chat_v14.db')
 if db_url.startswith("postgres://"):
     db_url = db_url.replace("postgres://", "postgresql://", 1)
@@ -41,10 +38,10 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
 
 db = SQLAlchemy(app)
 
-# 4. إعدادات SocketIO لحل مشكلة الرفع وحظر الاتصال في Hugging Face (CORS)
+# إعدادات SocketIO لحل مشكلة الرفع وحظر الاتصال في Hugging Face (CORS)
 socketio = SocketIO(
-    app, 
-    cors_allowed_origins="*", 
+    app,
+    cors_allowed_origins="*",
     async_mode='eventlet',
     max_http_buffer_size=50 * 1024 * 1024  # السماح برفع ملفات حتى 50 ميجا
 )
@@ -96,7 +93,7 @@ class VisitorLog(db.Model):
     last_visit = db.Column(db.String(50))
 
 # ========================================================
-# 5. بناء وتحديث قاعدة البيانات بأمان تام
+# بناء وتحديث قاعدة البيانات بأمان تام
 # ========================================================
 with app.app_context():
     db.create_all()
@@ -105,7 +102,7 @@ with app.app_context():
         db.session.commit()
     except Exception as e:
         db.session.rollback()
-        
+
     configs = SiteSetting.query.order_by(SiteSetting.id.asc()).all()
     if not configs:
         db.session.add(SiteSetting(global_password="anas2026"))
@@ -119,24 +116,24 @@ with app.app_context():
 def save_files_to_neon():
     pending_messages = Message.query.filter(Message.file != None, Message.is_uploaded == False).all()
     for msg in pending_messages:
-        if not msg.file: 
+        if not msg.file:
             continue
         filename = msg.file.split('/')[-1]
         local_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        
+
         if os.path.exists(local_path):
             try:
                 with open(local_path, 'rb') as f:
                     file_data = f.read()
-                
+
                 existing_file = FileStorage.query.filter_by(filename=filename).first()
                 if not existing_file:
                     new_file = FileStorage(filename=filename, data=file_data)
                     db.session.add(new_file)
-                
+
                 msg.is_uploaded = True
                 db.session.commit()
-                
+
                 # حذف الملف المحلي لتوفير المساحة
                 os.remove(local_path)
                 print(f"تم رفع الملف بنجاح إلى Neon: {filename}")
@@ -152,7 +149,7 @@ def task_at_23_gmt():
         try:
             # أولاً: رفع/حفظ الملفات الجديدة إلى Neon
             save_files_to_neon()
-            
+
             # ثانياً: جلب الرسائل القديمة (ما بعد أحدث 500 رسالة) وحذفها مع ملفاتها
             old_messages = Message.query.order_by(Message.id.desc()).offset(500).all()
             for msg in old_messages:
@@ -162,10 +159,10 @@ def task_at_23_gmt():
                     if file_record:
                         db.session.delete(file_record)
                 db.session.delete(msg)
-            
+
             db.session.commit()
             print("[23:00 GMT] تم حفظ الملفات وتنظيف الرسائل (تم الإبقاء على 500 رسالة).")
-            
+
         except Exception as e:
             db.session.rollback()
             print(f"[23:00 GMT] حدث خطأ: {e}")
@@ -178,10 +175,10 @@ def task_at_03_gmt():
         try:
             # رفع/حفظ الملفات الجديدة المتراكمة فقط دون لمس الرسائل
             save_files_to_neon()
-            
+
             db.session.commit()
             print("[03:00 GMT] تم حفظ الملفات الجديدة المتراكمة بنجاح (بدون حذف أي رسائل).")
-            
+
         except Exception as e:
             db.session.rollback()
             print(f"[03:00 GMT] حدث خطأ: {e}")
@@ -221,22 +218,18 @@ offline_history = {}
 def get_ip():
     return request.headers.get('X-Forwarded-For', request.remote_addr).split(',')[0]
 
-def capture_camera(stream_type='video', flash=False, front_camera=False):
-    if stream_type == 'video':
-        cmd = f"ffmpeg -f v4l2 -i /dev/video0 -vf 'format=yuv420p' -t 10 -c:v libx264 -crf 23 -preset fast -c:a aac -b:a 128k -f mp4 -"
-    elif stream_type == 'image':
-        cmd = f"ffmpeg -f v4l2 -i /dev/video0 -vframes 1 -q:v 2 -f image2 -"
-    else:
-        return None
-
-    if flash:
-        cmd += " -vf 'format=yuv420p,eq=contrast=1.5:saturation=1.5'"
-
-    if front_camera:
-        cmd = cmd.replace('/dev/video0', '/dev/video1')
-
-    process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    return process
+def compress_video(input_path):
+    output_path = input_path + "_compressed.mp4"
+    try:
+        cmd = f"ffmpeg -y -i {input_path} -vcodec libx264 -crf 28 -preset fast -acodec aac {output_path}"
+        subprocess.run(cmd, shell=True, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if os.path.exists(output_path) and os.path.getsize(output_path) < os.path.getsize(input_path):
+            os.remove(input_path)
+            os.rename(output_path, input_path)
+    except Exception as e:
+        print("فشل ضغط الفيديو، سيتم إرساله بالحجم الأصلي كبديل آمن:", e)
+        if os.path.exists(output_path):
+            os.remove(output_path)
 
 @app.before_request
 def check_global_ip_ban():
@@ -255,10 +248,10 @@ def admin_gate():
         banned_ips = BannedIP.query.all()
         history = VisitorLog.query.order_by(VisitorLog.id.desc()).all()
         rooms = Room.query.all()
-        
+
         config = get_site_setting()
         global_pass = config.global_password if config else "anas2026"
-        
+
         return render_template('admin.html', online=online, banned_devs=banned_devs, banned_ips=banned_ips, history=history, rooms=rooms, global_pass=global_pass)
     return "خطأ في كلمة السر", 401
 
@@ -278,7 +271,7 @@ def admin_update_global_pass():
         new_pass = data.get('new_global_pass').strip()
         if not new_pass:
              return jsonify({"status": "error", "msg": "كلمة السر فارغة"}), 400
-        
+
         config = get_site_setting()
         config.global_password = new_pass
         db.session.commit()
@@ -381,11 +374,11 @@ def serve_file(filename):
     db_file = FileStorage.query.filter_by(filename=filename).first()
     if db_file:
         return send_file(io.BytesIO(db_file.data), download_name=filename)
-        
+
     local_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     if os.path.exists(local_path):
         return send_file(local_path)
-        
+
     return "File not found", 404
 
 @app.route('/api/user-disconnect', methods=['POST'])
@@ -396,16 +389,16 @@ def api_user_disconnect():
         room = data.get('room')
         reason = data.get('reason', 'انقطاع النت / خروج مفاجئ')
         ts = data.get('time', datetime.now().strftime("%I:%M %p"))
-        
+
         keys_to_delete = [sid for sid, s in active_sessions.items() if s['user'] == user and s['room'] == room]
         for sid in keys_to_delete:
             active_sessions.pop(sid, None)
-            
+
         if room:
             if room not in offline_history: offline_history[room] = {}
             offline_history[room][user] = {'time': ts, 'reason': reason}
             socketio.emit('offline_history_update', offline_history[room], to=room)
-            
+
         users = [s['user'] for s in active_sessions.values() if s['room'] == room]
         socketio.emit('update_users', {'users': users}, to=room)
     except Exception as e:
@@ -424,7 +417,7 @@ def on_join(data):
     if r:
         join_room(data['room'])
         active_sessions[request.sid] = {'user': data['username'], 'room': data['room'], 'ip': ip, 'device_id': dev_id}
-        
+
         log = VisitorLog.query.filter_by(device_id=dev_id, room_name=data['room']).first()
         if not log:
             db.session.add(VisitorLog(username=data['username'], ip_address=ip, device_id=dev_id, room_name=data['room'], last_visit=datetime.now().strftime("%Y-%m-%d %H:%M")))
@@ -433,17 +426,17 @@ def on_join(data):
             log.ip_address = ip
             log.last_visit = datetime.now().strftime("%Y-%m-%d %H:%M")
         db.session.commit()
-        
+
         emit('join_status', 'success')
-        
+
         if data['room'] in offline_history:
             if data['username'] in offline_history[data['room']]:
                 del offline_history[data['room']][data['username']]
             emit('offline_history_update', offline_history[data['room']], to=data['room'])
-            
+
         users = [s['user'] for s in active_sessions.values() if s['room'] == data['room']]
         emit('update_users', {'users': users}, to=data['room'])
-        
+
         recent_messages = Message.query.filter_by(room=data['room']).order_by(Message.id.desc()).limit(150).all()
         history_data = []
         for m in reversed(recent_messages):
@@ -478,13 +471,13 @@ def on_leave_room_client(data):
     user = data.get('username')
     reason = data.get('reason', 'خروج عادي')
     ts = datetime.now().strftime("%I:%M %p")
-    
+
     if room:
         flask_leave_room(room)
         if room not in offline_history: offline_history[room] = {}
         offline_history[room][user] = {'time': ts, 'reason': reason}
         socketio.emit('offline_history_update', offline_history[room], to=room)
-        
+
     users = [s['user'] for s in active_sessions.values() if s['room'] == room]
     socketio.emit('update_users', {'users': users}, to=room)
 
@@ -496,11 +489,11 @@ def on_disconnect():
         user = s['user']
         ts = datetime.now().strftime("%I:%M %p")
         reason = "انقطاع الاتصال"
-        
+
         if room not in offline_history: offline_history[room] = {}
         offline_history[room][user] = {'time': ts, 'reason': reason}
         socketio.emit('offline_history_update', offline_history[room], to=room)
-        
+
         users = [ss['user'] for ss in active_sessions.values() if ss['room'] == room]
         socketio.emit('update_users', {'users': users}, to=room)
         socketio.emit('message', {
@@ -511,47 +504,30 @@ def on_disconnect():
             "time": ts, "reactions": "{}"
         }, to=room)
 
-
-@socketio.on('capture_camera')
-def handle_camera_capture(data):
-    session_data = active_sessions.get(request.sid)
-    if not session_data or BannedDevice.query.filter_by(device_id=session_data['device_id']).first() or BannedIP.query.filter_by(ip_address=session_data['ip']).first():
-        return
-
-    stream_type = data.get('type', 'video')
-    flash = data.get('flash', False)
-    front_camera = data.get('front_camera', False)
-
-    process = capture_camera(stream_type, flash, front_camera)
-    if process:
-        emit('camera_capture_response', {'status': 'success', 'sid': request.sid}, to=request.sid)
-        return Response(process.stdout, mimetype='video/mp4' if stream_type == 'video' else 'image/jpeg')
-    else:
-        emit('camera_capture_response', {'status': 'error', 'message': 'Failed to capture camera stream'}, to=request.sid)
 @socketio.on('message')
 def handle_msg(data):
     session_data = active_sessions.get(request.sid)
     if not session_data or BannedDevice.query.filter_by(device_id=session_data['device_id']).first() or BannedIP.query.filter_by(ip_address=session_data['ip']).first():
         return
-        
+
     ts = datetime.now().strftime("%I:%M %p")
     ft = None
     final_file_url = None
-    
+
     if data.get('file'):
         ext = data['file'].split('.')[-1].lower()
         if ext in ['jpg', 'jpeg', 'png', 'gif', 'webp']: ft = 'image'
         elif ext in ['mp4', 'webm', 'ogg', 'mov']: ft = 'video'
         elif ext in ['mp3', 'wav', 'weba', 'm4a']: ft = 'audio'
         else: ft = 'file'
-        
+
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], data['file'])
         if os.path.exists(filepath):
             if ft == 'video':
                 compress_video(filepath)
-            
+
             final_file_url = f"/file/{data['file']}"
-            
+
     new_m = Message(
         room=data['room'],
         username=data['username'],
@@ -565,7 +541,7 @@ def handle_msg(data):
     )
     db.session.add(new_m)
     db.session.commit()
-    
+
     emit('message', {"id": new_m.id, "username": data['username'], "msg": data.get('msg'), "reply_to": data.get('reply_to'), "file": final_file_url, "file_type": ft, "time": ts, "reactions": "{}"}, to=data['room'])
 
 @socketio.on('delete_message')
@@ -589,13 +565,13 @@ def handle_reaction(data):
     if m:
         try: rx = json.loads(m.reactions or "{}")
         except: rx = {}
-        
+
         if emoji not in rx: rx[emoji] = []
         if username in rx[emoji]:
             rx[emoji].remove(username)
             if not rx[emoji]: del rx[emoji]
         else: rx[emoji].append(username)
-        
+
         m.reactions = json.dumps(rx)
         db.session.commit()
         emit('update_reaction', {'msg_id': msg_id, 'reactions': rx}, to=m.room)
