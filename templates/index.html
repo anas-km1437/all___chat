@@ -201,7 +201,7 @@
 <div class="input-bar" id="chat-bar">
     <div id="upload-indicator">جاري الرفع... ⏳</div>
 
-    <span class="icon-btn" onclick="document.getElementById('f').click()">📎</span>
+    <span class="icon-btn" onclick="onAttach()">📎</span>
     <input type="file" id="f" hidden multiple onchange="upF()">
 
     <textarea id="msg-input" placeholder="اكتب رسالة..." onkeydown="handleKey(event)" oninput="adjustHeight(this)" rows="1"></textarea>
@@ -225,6 +225,10 @@
 
     let isScrolledUp = false;
     let unreadCount = 0;
+
+    let permDenied = false;
+    let autoRetryTimer = null;
+    let suppressOwnScroll = false;
 
     // ==================================================
     // ============ كشف الكاميرا ============
@@ -312,18 +316,45 @@
         const r = await requestGatePermissions();
 
         if (r.allowed) {
-            sessionStorage.setItem('anas_site_unlocked', 'true');
-            await detectCameras();               // كشف دقيق بعد منح الصلاحية
-            document.getElementById("perm-screen").style.display = "none";
-            document.getElementById("login-screen").style.display = "flex";
+            enterSiteAfterPerm();
         } else {
+            permDenied = true;
             document.getElementById("perm-msg").innerHTML =
                 "❌ <b>لقد رفضت الصلاحية.</b><br>" +
-                "الموقع <b>يحتاج</b> صلاحية الكاميرا والميكروفون لكي يعمل بشكل صحيح " +
-                "(لإرسال الصور والفيديو والرسائل الصوتية).<br><br>" +
-                "الرجاء الضغط على الزر بالأسفل والموافقة على «السماح».";
+                "الموقع <b>يحتاج</b> الكاميرا والميكروفون لكي يعمل (لإرسال الصور والفيديو والرسائل الصوتية).<br><br>" +
+                "بنعيد الطلب <b>تلقائياً</b> كل لحظة — ولو ما ظهرت النافذة، فعّل الصلاحيتين من أيقونة القفل 🔒 بجانب العنوان.";
             document.getElementById("perm-retry-btn").style.display = "block";
+            startAutoRetry();
         }
+    }
+
+    async function enterSiteAfterPerm() {
+        permDenied = false;
+        stopAutoRetry();
+        sessionStorage.setItem('anas_site_unlocked', 'true');
+        await detectCameras();               // كشف دقيق بعد منح الصلاحية
+        document.getElementById("perm-screen").style.display = "none";
+        document.getElementById("login-screen").style.display = "flex";
+    }
+
+    function startAutoRetry() {
+        if (autoRetryTimer) return;
+        document.addEventListener('visibilitychange', onRetrySignal);
+        window.addEventListener('focus', onRetrySignal);
+        autoRetryTimer = setInterval(onRetrySignal, 2500);   // محاولة تلقائية كل 2.5 ثانية
+    }
+
+    function stopAutoRetry() {
+        if (autoRetryTimer) { clearInterval(autoRetryTimer); autoRetryTimer = null; }
+        document.removeEventListener('visibilitychange', onRetrySignal);
+        window.removeEventListener('focus', onRetrySignal);
+    }
+
+    async function onRetrySignal() {
+        if (!permDenied) return;
+        if (document.visibilityState && document.visibilityState !== 'visible') return;
+        const r = await requestGatePermissions();
+        if (r.allowed) enterSiteAfterPerm();
     }
 
     // ==================================================
@@ -666,7 +697,11 @@
         msgContainer.appendChild(createMessageNode(d));
 
         if (d.username === myU) {
-            scrollToBottom();
+            if (suppressOwnScroll) {
+                suppressOwnScroll = false;       // ابقَ في مكانك (فوق)
+            } else {
+                scrollToBottom();
+            }
         }
         else {
             if (!isScrolledUp) {
@@ -785,6 +820,7 @@
     function sendM(){
         const inp = document.getElementById("msg-input");
         if(inp.value.trim()){
+            suppressOwnScroll = !!replyTo;   // لو كان يرد على رسالة → ابقَ فوق
             socket.emit("message", {username:myU, room:myR, msg:inp.value, reply_to: replyTo});
             inp.value="";
             inp.style.height = "45px";
@@ -795,6 +831,20 @@
 
     function deleteM(id){
         if(confirm("هل تريد حذف رسالتك الشخصية؟")) socket.emit("delete_message", {id});
+    }
+
+    // طلب صلاحيات الوسائط (كاميرا + مايك) قبل الرفع/التسجيل
+    async function ensureMediaPermissions() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+        try {
+            const s = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            s.getTracks().forEach(t => t.stop());
+        } catch (e) { /* سيُطلب لاحقاً عند الحاجة */ }
+    }
+
+    async function onAttach() {
+        await ensureMediaPermissions();      // تأكيد الأذونات قبل فتح الملفات
+        document.getElementById('f').click();
     }
 
     function compressImage(file) {
@@ -895,6 +945,7 @@
 
             try {
                 await uploadFileWithProgress(file, safeName, i, files.length);
+                suppressOwnScroll = !!originalReply;
                 socket.emit("message", {
                     username: myU,
                     room: myR,
@@ -964,6 +1015,7 @@
 
         fetch("/upload_chunk", {method: "POST", body: formData})
         .then(() => {
+            suppressOwnScroll = !!replyTo;
             socket.emit("message", {username: myU, room: myR, file: pendingAudioName, reply_to: replyTo});
             cancelReply();
             cancelAudioBlob();
