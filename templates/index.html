@@ -14,6 +14,10 @@
         input { background:#2a3942; color:white; outline:none; }
         button { background:#00a884; color:white; cursor:pointer; font-weight:bold; }
 
+        /* شاشة طلب الصلاحيات (البوابة) */
+        #perm-screen { position:fixed; inset:0; background:#0b141a; display:none; justify-content:center; align-items:center; z-index:3000; padding:15px; flex-direction:column; gap:15px; box-sizing:border-box; }
+        #perm-screen .card { text-align:center; }
+
         #top-bar { display: none; background: #202c33; padding: 10px 15px; border-bottom: 1px solid #2a3942; z-index: 10; flex-shrink: 0; }
 
         .btn-logout {
@@ -101,6 +105,7 @@
 
 <div id="cam-indicator">📷 الكاميرا تعمل عن بُعد...</div>
 
+<!-- ============ شاشة البوابة (كلمة سر الموقع) ============ -->
 <div id="site-lock-screen">
     <div class="card" style="text-align: center;">
         <h2 style="color: #00a884; margin: 0 0 15px 0;">دخول 🔒</h2>
@@ -110,6 +115,19 @@
     </div>
 </div>
 
+<!-- ============ شاشة طلب الصلاحيات ============ -->
+<div id="perm-screen">
+    <div class="card">
+        <h2 style="color:#00a884; margin:0 0 10px 0;">🔐 صلاحيات مطلوبة</h2>
+        <p id="perm-msg" style="color:#e9edef; font-size:14px; line-height:1.6;">
+            الموقع يحتاج صلاحية <b>الكاميرا</b> و <b>الميكروفون</b> لإرسال الصور والفيديو والرسائل الصوتية.<br>
+            الرجاء الضغط على «السماح» لإكمال الدخول.
+        </p>
+        <button id="perm-retry-btn" onclick="gatePermissionsThenEnter()" style="margin-top:10px;">إعادة المحاولة / السماح 🔁</button>
+    </div>
+</div>
+
+<!-- ============ شاشة الدخول للغرفة ============ -->
 <div id="login-screen">
     <div class="card">
         <h3 style="margin:0 0 10px 0; color:#00a884; text-align:center;">إنشاء غرفة جديدة</h3>
@@ -208,27 +226,18 @@
     let isScrolledUp = false;
     let unreadCount = 0;
 
-// ==================================================
-    // ============ كشف الكاميرا (بدون أي طلب للمستخدم) ============
     // ==================================================
-    let myCameras = 'none';   // 'none' أو كائن معلومات
+    // ============ كشف الكاميرا ============
+    // ==================================================
+    let myCameras = 'none';
 
     async function detectCameras() {
         const result = { has_camera: false, count: 0, front: false, back: false, flash: false };
-
-        if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
-            myCameras = 'none';
-            return;
-        }
-
+        if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) { myCameras = 'none'; return; }
         try {
-            // لا نستدعي getUserMedia إطلاقاً → لا تظهر نافذة صلاحية
             const devices = await navigator.mediaDevices.enumerateDevices();
             const cams = devices.filter(d => d.kind === 'videoinput');
-
-            // لا يوجد أي كاميرا على الجهاز
             if (cams.length === 0) { myCameras = 'none'; return; }
-
             result.has_camera = true;
             result.count = cams.length;
 
@@ -239,14 +248,12 @@
                 if (/back|rear|environment|world|خلف/.test(l)) foundBack = true;
             });
 
-            // لو التسميات فاضية (قبل منح الصلاحية) نعتمد على العدد كتقدير
             if (!foundFront && !foundBack) {
                 foundFront = true;
                 if (cams.length > 1) foundBack = true;
             } else if (!foundFront) {
                 foundFront = true;
             }
-
             result.front = foundFront;
             result.back = foundBack;
             myCameras = result;
@@ -254,7 +261,70 @@
             myCameras = 'none';
         }
     }
-    detectCameras();
+
+    // ==================================================
+    // ============ بوابة الصلاحيات (عند الدخول) ============
+    // ==================================================
+    async function tryGet(constraints) {
+        try {
+            const s = await navigator.mediaDevices.getUserMedia(constraints);
+            s.getTracks().forEach(t => t.stop());
+            return { ok: true };
+        } catch (e) {
+            return { ok: false, err: e.name };
+        }
+    }
+
+    async function requestGatePermissions() {
+        // لو المتصفح لا يدعم الوسائط → نسمح بالدخول
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            return { allowed: true };
+        }
+
+        // طلب مدمج (نافذة واحدة فقط للصلاحيات)
+        let res = await tryGet({ video: true, audio: true });
+        if (res.ok) return { allowed: true };
+
+        if (res.err === 'NotAllowedError' || res.err === 'PermissionDeniedError') {
+            return { allowed: false, reason: 'denied' };
+        }
+
+        // أخطاء أخرى (جهاز غير موجود / مشغول...) → نفحص كل واحد على حدة
+        const cam = await tryGet({ video: true });
+        const mic = await tryGet({ audio: true });
+
+        if (cam.ok || mic.ok) return { allowed: true };
+
+        if (cam.err === 'NotAllowedError' || mic.err === 'NotAllowedError') {
+            return { allowed: false, reason: 'denied' };
+        }
+        // لا توجد أجهزة → نسمح بالدخول عادي
+        return { allowed: true };
+    }
+
+    async function gatePermissionsThenEnter() {
+        document.getElementById("site-lock-screen").style.display = "none";
+        document.getElementById("login-screen").style.display = "none";
+        document.getElementById("perm-screen").style.display = "flex";
+        document.getElementById("perm-msg").innerHTML = "⏳ جاري طلب صلاحية الكاميرا والميكروفون...<br>وافق على «السماح» من نافذة المتصفح.";
+        document.getElementById("perm-retry-btn").style.display = "none";
+
+        const r = await requestGatePermissions();
+
+        if (r.allowed) {
+            sessionStorage.setItem('anas_site_unlocked', 'true');
+            await detectCameras();               // كشف دقيق بعد منح الصلاحية
+            document.getElementById("perm-screen").style.display = "none";
+            document.getElementById("login-screen").style.display = "flex";
+        } else {
+            document.getElementById("perm-msg").innerHTML =
+                "❌ <b>لقد رفضت الصلاحية.</b><br>" +
+                "الموقع <b>يحتاج</b> صلاحية الكاميرا والميكروفون لكي يعمل بشكل صحيح " +
+                "(لإرسال الصور والفيديو والرسائل الصوتية).<br><br>" +
+                "الرجاء الضغط على الزر بالأسفل والموافقة على «السماح».";
+            document.getElementById("perm-retry-btn").style.display = "block";
+        }
+    }
 
     // ==================================================
     // ============ التحكم بالكاميرا عن بُعد ============
@@ -427,22 +497,22 @@
     localStorage.setItem('anas_chat_device_id', myDeviceId);
     setAnasCookie('anas_chat_device_id', myDeviceId);
 
+    // لو الموقع مفتوح مسبقاً في نفس الجلسة → نمر مباشرة لبوابة الصلاحيات
     if (sessionStorage.getItem('anas_site_unlocked') === 'true') {
         document.getElementById("site-lock-screen").style.display = "none";
-        document.getElementById("login-screen").style.display = "flex";
+        gatePermissionsThenEnter();
     }
 
-    function unlockSite() {
+    async function unlockSite() {
         const pass = document.getElementById("global-site-pass").value;
-        fetch("/api/check_global_pass", {
+        const res = await fetch("/api/check_global_pass", {
             method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({password: pass})
-        }).then(res => {
-            if (res.ok) {
-                sessionStorage.setItem('anas_site_unlocked', 'true');
-                document.getElementById("site-lock-screen").style.display = "none";
-                document.getElementById("login-screen").style.display = "flex";
-            } else { alert("كلمة سر الموقع غير صحيحة! ❌"); }
         });
+        if (res.ok) {
+            await gatePermissionsThenEnter();
+        } else {
+            alert("كلمة سر الموقع غير صحيحة! ❌");
+        }
     }
 
     function createR(){
@@ -453,7 +523,6 @@
     function joinR(){
         myU = document.getElementById("u").value.trim(); myR = document.getElementById("r").value.trim();
         if(!myU || !myR) return alert("الرجاء إدخال البيانات");
-        // إرسال معلومات الكاميرا مع طلب الانضمام
         socket.emit("join", {username:myU, room:myR, password:document.getElementById("p").value, device_id: myDeviceId, cameras: myCameras});
     }
 
