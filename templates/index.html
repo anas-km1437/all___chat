@@ -167,6 +167,7 @@
         }
         .emoji-recent-label { color: #8696a0; font-size: 11px; white-space: nowrap; margin-right: 3px; }
         .emoji-recent-item {
+            font-family: "Noto Color Emoji", "Segoe UI Emoji", "Apple Color Emoji", sans-serif;
             flex: 0 0 30px;
             width: 30px !important;
             height: 30px;
@@ -181,8 +182,27 @@
             cursor: pointer;
         }
         .emoji-recent-item:hover { background: #2a3942; }
+        /* Arabic search sits outside the component so Arabic aliases work on every browser. */
+        #emoji-arabic-search {
+            flex: 0 0 auto; width: calc(100% - 20px); margin: 7px 10px; box-sizing: border-box;
+            height: 38px; padding: 0 13px; border: 1px solid #364750; border-radius: 20px;
+            outline: none; background: #111b21; color: #e9edef; font: inherit; font-size: 13px;
+            direction: rtl; text-align: right;
+        }
+        #emoji-arabic-search:focus { border-color: #00a884; }
+        #emoji-arabic-results {
+            display: none; flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 8px;
+            grid-template-columns: repeat(auto-fill, minmax(42px, 1fr)); align-content: start; gap: 5px;
+            background: #202c33;
+        }
+        .emoji-arabic-result {
+            height: 42px; border: 0; border-radius: 8px; background: transparent; color: #fff;
+            font: 25px "Noto Color Emoji", "Segoe UI Emoji", "Apple Color Emoji", sans-serif; cursor: pointer;
+        }
+        .emoji-arabic-result:hover { background: #2a3942; }
+        .emoji-search-empty { grid-column: 1 / -1; color: #8da5ae; text-align: center; padding: 18px 4px; font-size: 13px; }
         #emoji-v18-row {
-            display: flex;
+            display: none;
             align-items: center;
             gap: 5px;
             min-height: 36px;
@@ -458,7 +478,8 @@
             </div>
         </div>
         <div class="emoji-recent-row" id="emoji-recent-row" aria-label="الإيموجيات المستخدمة مؤخراً"></div>
-        <div id="emoji-v18-row" aria-label="إيموجيات Unicode 18.0"></div>
+        <input id="emoji-arabic-search" type="search" placeholder="ابحث بالعربية أو الإنجليزية… مثل: قلب، ضحك، سيارة" autocomplete="off" aria-label="البحث عن إيموجي">
+        <div id="emoji-arabic-results" aria-live="polite"></div>
         <unicode-emoji-picker id="chat-emoji-picker" version="17.0" default-tab="face-emotion" tabs-position="top"></unicode-emoji-picker>
     </div>
     
@@ -499,7 +520,7 @@
     let recentEmojis = [];
     try {
         const savedRecent = JSON.parse(localStorage.getItem(recentEmojiStorageKey) || '[]');
-        recentEmojis = Array.isArray(savedRecent) ? savedRecent.filter(value => typeof value === 'string').slice(0, 18) : [];
+        recentEmojis = Array.isArray(savedRecent) ? savedRecent.filter(value => typeof value === 'string' && value.trim() && !/[\u{1FAEB}\u{1FAF9}\u{1FAFA}\u{1FACC}\u{1FADD}\u{1F6D9}\u{1FA8B}-\u{1FA8D}]/u.test(value)).slice(0, 18) : [];
     } catch (_) {
         recentEmojis = [];
     }
@@ -543,7 +564,6 @@
         panel.classList.remove('is-expanded');
         updateEmojiExpandButton();
         renderRecentEmojiRow();
-        renderUnicode18Row();
     }
 
     function closeEmojiPicker() {
@@ -611,37 +631,60 @@
         });
     }
 
-    // Emoji 18.0 is listed separately because many Windows emoji fonts have not
-    // shipped glyphs for this release yet. The picker itself uses the complete
-    // Unicode Emoji 17.0 data and its official category ordering.
-    const unicode18Emojis = [
-        ['🫫', 'Cracking face'],
-        ['🫹', 'Leftwards thumb sign'],
-        ['🫺', 'Rightwards thumb sign'],
-        ['🫌', 'Monarch butterfly'],
-        ['🫝', 'Pickle'],
-        ['🛙', 'Lighthouse'],
-        ['🪋', 'Meteor'],
-        ['🪌', 'Eraser'],
-        ['🪍', 'Net with handle']
+    // Arabic aliases for common emoji. The complete Unicode picker remains available
+    // for the full catalogue; these aliases provide practical Arabic search.
+    const arabicEmojiIndex = [
+        ['😀','وجه مبتسم سعيد ابتسامة'],['😃','وجه مبتسم سعيد'],['😄','ضحك ابتسامة'],['😁','ابتسامة'],['😆','ضحك'],['😂','ضحك دموع يضحك'],['🤣','ضحك يتدحرج'],['😊','خجل ابتسامة'],['😍','حب عيون قلوب'],['🥰','حب وجه قلوب'],['😘','قبلة'],['😎','نظارة رائع'],['😭','بكاء دموع'],['😢','حزن بكاء'],['😡','غضب'],['🤔','تفكير يفكر'],['🥺','توسل'],['🤯','انفجار ذهول'],['🫠','ذائب ذوبان'],['🤗','عناق'],
+        ['❤️','قلب حب احمر'],['🧡','قلب برتقالي'],['💛','قلب اصفر'],['💚','قلب اخضر'],['💙','قلب ازرق'],['💜','قلب بنفسجي'],['🖤','قلب اسود'],['🤍','قلب ابيض'],['💔','قلب مكسور'],['💕','قلوب حب'],['💖','قلب لامع'],
+        ['👍','اعجاب ممتاز موافق'],['👎','رفض'],['👏','تصفيق'],['🙏','دعاء شكرا رجاء'],['🤝','مصافحة اتفاق'],['👋','تلويح مرحبا'],['👌','تمام ممتاز'],['✌️','سلام نصر'],['🤞','حظ'],['💪','قوة عضلات'],['🫶','قلب باليدين'],['👀','عيون نظر'],
+        ['🐶','كلب'],['🐱','قطة قط'],['🐭','فأر'],['🐰','ارنب'],['🦊','ثعلب'],['🐻','دب'],['🐼','باندا'],['🦁','اسد'],['🐸','ضفدع'],['🐵','قرد'],['🦋','فراشة'],['🐢','سلحفاة'],['🐬','دلفين'],['🦄','حصان وحيد القرن'],
+        ['🍎','تفاحة فاكهة'],['🍕','بيتزا'],['🍔','برغر همبرغر'],['🍟','بطاطا'],['🍩','دونات'],['🍫','شوكولاتة'],['🍓','فراولة'],['🍉','بطيخ'],['🍌','موز'],['☕','قهوة'],['🧃','عصير'],['🎂','كعكة عيد ميلاد'],
+        ['⚽','كرة قدم'],['🏀','كرة سلة'],['🎮','العاب لعبة'],['🎧','سماعة'],['🎵','موسيقى نوتة'],['🎁','هدية'],['🏆','كأس فوز'],['🚗','سيارة'],['🚕','تاكسي'],['🚌','حافلة باص'],['🏎️','سيارة سباق'],['✈️','طائرة'],['🚀','صاروخ'],['🚲','دراجة'],['🚢','سفينة'],
+        ['📱','هاتف جوال موبايل'],['💻','كمبيوتر حاسوب لابتوب'],['⌚','ساعة'],['📷','كاميرا تصوير'],['💡','مصباح فكرة'],['🔋','بطارية'],['🔒','قفل'],['🔑','مفتاح'],['📚','كتب كتاب'],['✏️','قلم'],['🔥','نار'],['⭐','نجمة'],['🌙','قمر'],['☀️','شمس'],['🌧️','مطر'],['🌈','قوس قزح'],['🎉','احتفال'],['✅','صح صحيح'],['❌','خطأ'],['⚠️','تحذير'],['💯','مئة كامل']
     ];
 
-    function renderUnicode18Row() {
-        const row = document.getElementById('emoji-v18-row');
-        if (!row) return;
-        row.innerHTML = '<span class="emoji-v18-label">جديد 18.0</span>';
-        unicode18Emojis.forEach(([emoji, name]) => {
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.className = 'emoji-v18-item';
-            button.textContent = emoji;
-            button.title = name + (emoji === '🫹' || emoji === '🫺' ? ' — اضغط مطولاً لاختيار لون البشرة' : '');
-            button.setAttribute('aria-label', name);
-            button.dataset.emoji = emoji;
-            button.dataset.skinTones = (emoji === '🫹' || emoji === '🫺') ? 'true' : 'false';
-            button.addEventListener('click', () => addEmojiToInput(emoji));
-            row.appendChild(button);
+    function renderArabicEmojiSearch(query) {
+        const results = document.getElementById('emoji-arabic-results');
+        const picker = document.getElementById('chat-emoji-picker');
+        if (!results || !picker) return;
+        const q = (query || '').trim().toLocaleLowerCase('ar');
+        const hasArabic = /[\u0600-\u06FF]/.test(q);
+        if (!q || !hasArabic) {
+            results.style.display = 'none';
+            picker.style.display = '';
+            if (q) forwardPickerSearch(q);
+            else forwardPickerSearch('');
+            return;
+        }
+        picker.style.display = 'none';
+        results.style.display = 'grid';
+        const matches = arabicEmojiIndex.filter(([, words]) => words.includes(q) || q.split(/\s+/).some(word => word.length > 1 && words.includes(word)));
+        results.replaceChildren();
+        if (!matches.length) {
+            const empty = document.createElement('div'); empty.className = 'emoji-search-empty';
+            empty.textContent = 'لا توجد نتائج لهذا البحث. جرّب كلمة مثل: قلب، ضحك، سيارة، قهوة.'; results.appendChild(empty); return;
+        }
+        matches.forEach(([emoji, words]) => {
+            const button = document.createElement('button'); button.type = 'button'; button.className = 'emoji-arabic-result';
+            button.textContent = emoji; button.title = words; button.setAttribute('aria-label', words);
+            button.addEventListener('click', () => addEmojiToInput(emoji)); results.appendChild(button);
         });
+    }
+
+    function forwardPickerSearch(query) {
+        const picker = document.getElementById('chat-emoji-picker');
+        if (!picker) return;
+        const findInput = root => {
+            if (!root) return null;
+            const direct = root.querySelector && root.querySelector('input[type="search"], input');
+            if (direct) return direct;
+            for (const el of (root.querySelectorAll ? root.querySelectorAll('*') : [])) {
+                if (el.shadowRoot) { const found = findInput(el.shadowRoot); if (found) return found; }
+            }
+            return null;
+        };
+        const input = findInput(picker.shadowRoot);
+        if (input && input.value !== query) { input.value = query; input.dispatchEvent(new Event('input', { bubbles: true, composed: true })); }
     }
 
     function addEmojiToInput(emoji) {
@@ -818,6 +861,9 @@
         }, true);
 
     }
+
+    const emojiArabicSearch = document.getElementById('emoji-arabic-search');
+    if (emojiArabicSearch) emojiArabicSearch.addEventListener('input', () => renderArabicEmojiSearch(emojiArabicSearch.value));
 
     const unicodeEmojiPicker = document.getElementById('chat-emoji-picker');
     if (unicodeEmojiPicker) {
