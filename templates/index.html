@@ -90,80 +90,237 @@
         #reaction-picker span { cursor: pointer; font-size: 22px; transition: transform 0.2s; display: inline-block; user-select: none;}
         #reaction-picker span:hover { transform: scale(1.3); }
 
+        /* Emoji picker: anchored to the viewport so it is never clipped by the chat bar. */
         #emoji-panel {
             display: none;
-            position: absolute;
-            bottom: 65px;
+            position: fixed;
             right: 10px;
-            width: min(420px, calc(100vw - 20px));
-            height: min(430px, 58dvh);
-            min-height: 260px;
+            bottom: calc(68px + env(safe-area-inset-bottom));
+            width: min(440px, calc(100vw - 20px));
+            height: min(460px, 62dvh);
+            min-height: 290px;
+            max-height: calc(100dvh - 105px);
             background: #202c33;
             border: 1px solid #2a3942;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            z-index: 1000;
+            border-radius: 14px;
+            box-shadow: 0 12px 34px rgba(0,0,0,.48);
+            z-index: 1200;
             flex-direction: column;
             overflow: hidden;
+            direction: ltr;
+            isolation: isolate;
         }
-
-        .emoji-header-tabs {
+        #emoji-panel.is-expanded {
+            width: min(560px, calc(100vw - 20px));
+            height: min(700px, 82dvh);
+            max-height: calc(100dvh - 90px);
+        }
+        .emoji-panel-toolbar {
+            height: 42px;
+            min-height: 42px;
             display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 0 10px;
+            color: #e9edef;
             background: #111b21;
             border-bottom: 1px solid #2a3942;
+            box-sizing: border-box;
+            direction: rtl;
+            flex-shrink: 0;
+            cursor: grab;
+            user-select: none;
+            touch-action: none;
+        }
+        .emoji-panel-toolbar:active { cursor: grabbing; }
+        .emoji-panel-title { font-size: 13px; font-weight: 700; color: #dce4e8; }
+        .emoji-panel-actions { display: flex; align-items: center; gap: 5px; }
+        .emoji-panel-action {
+            width: 30px !important;
+            height: 30px;
+            min-width: 30px;
+            padding: 0 !important;
+            margin: 0 !important;
+            border: 0;
+            border-radius: 8px;
+            color: #cbd5da;
+            background: #202c33;
+            font-size: 17px;
+            line-height: 1;
+            cursor: pointer;
+        }
+        .emoji-panel-action:hover,
+        .emoji-panel-action:focus-visible { background: #2a3942; color: #fff; outline: 1px solid #00a884; }
+        .emoji-recent-row {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            min-height: 38px;
+            padding: 3px 8px;
             overflow-x: auto;
+            overflow-y: hidden;
+            background: #172229;
+            border-bottom: 1px solid #2a3942;
+            scrollbar-width: thin;
             flex-shrink: 0;
-            scrollbar-width: none;
         }
-        .emoji-header-tabs::-webkit-scrollbar { display: none; }
-
-        .emoji-tab-btn {
-            padding: 8px 12px;
+        .emoji-recent-label { color: #8696a0; font-size: 11px; white-space: nowrap; margin-right: 3px; }
+        .emoji-recent-item {
+            flex: 0 0 30px;
+            width: 30px !important;
+            height: 30px;
+            min-width: 30px;
+            padding: 0 !important;
+            margin: 0 !important;
+            background: transparent;
+            color: inherit;
+            font-size: 21px;
+            line-height: 1;
+            border-radius: 7px;
             cursor: pointer;
-            font-size: 18px;
-            user-select: none;
-            border-bottom: 2px solid transparent;
-            transition: background 0.2s;
+        }
+        .emoji-recent-item:hover { background: #2a3942; }
+        #emoji-v18-row {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            min-height: 36px;
+            padding: 2px 8px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            background: #1a272e;
+            border-bottom: 1px solid #2a3942;
             flex-shrink: 0;
-            text-align: center;
-            min-width: 40px;
+            scrollbar-width: thin;
         }
-
-        .emoji-tab-btn.active {
-            border-bottom-color: #00a884;
-            background: rgba(255,255,255,0.08);
+        .emoji-v18-label { color: #8da5ae; font-size: 10px; white-space: nowrap; margin-right: 3px; }
+        .emoji-v18-item {
+            flex: 0 0 30px;
+            width: 30px !important;
+            min-width: 30px;
+            height: 29px;
+            padding: 0 !important;
+            margin: 0 !important;
+            background: transparent;
+            font-size: 21px;
+            line-height: 1;
+            border-radius: 7px;
         }
-
-        .emoji-search-wrap { padding: 8px; background: #202c33; border-bottom: 1px solid #2a3942; flex-shrink: 0; }
-        #emoji-search { width: 100%; margin: 0; padding: 9px 12px; border-radius: 18px; background: #111b21; color: #e9edef; font-size: 14px; box-sizing: border-box; outline: none; }
-        .emoji-body {
-            flex: 1;
-            overflow-y: auto;
-            padding: 8px;
-            display: grid;
-            grid-template-columns: repeat(8, minmax(0, 1fr));
+        .emoji-v18-item:hover { background: #2a3942; }
+        unicode-emoji-picker {
+            display: block;
+            flex: 1 1 auto;
+            width: 100%;
+            height: 0;
+            min-height: 0;
+            --fill-color: #202c33;
+            --text-color: #e9edef;
+            --tabs-border-color: #2a3942;
+            --tab-fill-color-hover: #2a3942;
+            --tab-active-marker-color: #00a884;
+            --content-scrollbar-thumb-fill-color: #43545e;
+            --content-scrollbar-thumb-fill-color-hover: #60737e;
+            --title-bar-fill-color: #172229;
+            --search-input-border-color: #364750;
+            --search-input-border-color-hover: #00a884;
+            --emoji-border-color-hover: #00a884;
+            --emoji-variation-marker-color: #6d858f;
+            --emoji-variation-marker-color-hover: #00a884;
+            --variations-backdrop-fill-color: rgba(11,20,26,.65);
+            --variations-fill-color: #172229;
+            --emoji-font-family: "Noto Color Emoji", "Segoe UI Emoji", "Apple Color Emoji", sans-serif;
+            --emoji-size: 1.55em;
+            --min-emoji-col-count: 7;
+            --max-emoji-col-count: 10;
+            --min-emoji-row-count: 4;
+            --max-emoji-row-count: 9;
+            --emoji-variation-marker-color: #00a884;
+        }
+        unicode-emoji-picker::part(search-input) {
+            background: #111b21;
+            color: #e9edef;
+            border-radius: 18px;
+            direction: ltr;
+        }
+        unicode-emoji-picker::part(emoji) { border-radius: 8px; }
+        unicode-emoji-picker::part(emoji active),
+        unicode-emoji-picker::part(emoji):hover,
+        unicode-emoji-picker::part(emoji):focus-visible {
+            background: #2a3942;
+            outline-color: #00a884;
+        }
+        unicode-emoji-picker::part(variations) {
+            background: #172229;
+            border: 1px solid #3a4b54;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,.45);
+        }
+        .emoji-tone-popover {
+            position: absolute;
+            z-index: 40;
+            display: flex;
+            align-items: center;
             gap: 3px;
-            align-content: start;
-            overscroll-behavior: contain;
+            max-width: calc(100% - 16px);
+            padding: 6px;
+            background: #111b21;
+            border: 1px solid #43545e;
+            border-radius: 13px;
+            box-shadow: 0 8px 22px rgba(0,0,0,.48);
+            direction: ltr;
         }
-
-        .emoji-item {
-            font-size: 25px;
-            cursor: pointer;
-            text-align: center;
-            user-select: none;
-            border-radius: 6px;
-            padding: 5px 1px;
-            transition: background 0.15s;
-            min-width: 0;
-            font-family: "Noto Color Emoji", sans-serif;
+        .emoji-tone-option {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 35px !important;
+            height: 36px;
+            min-width: 35px;
+            padding: 0 !important;
+            margin: 0 !important;
+            border-radius: 8px;
+            background: transparent;
+            color: #fff;
+            font-size: 23px;
+            line-height: 1;
         }
-
-        .emoji-item:hover, .emoji-item:focus { background: #2a3942; outline: none; transform: scale(1.12); }
-        @media (max-width: 420px) {
-            #emoji-panel { right: 5px; width: calc(100vw - 20px); height: min(420px, 55dvh); }
-            .emoji-body { grid-template-columns: repeat(7, minmax(0, 1fr)); }
-            .emoji-tab-btn { min-width: 34px; padding: 8px 9px; }
+        .emoji-tone-option:hover,
+        .emoji-tone-option:focus-visible { background: #2a3942; outline: 1px solid #00a884; }
+        @media (max-width: 600px) {
+            #emoji-panel {
+                left: 8px;
+                right: 8px;
+                bottom: calc(70px + env(safe-area-inset-bottom));
+                width: auto;
+                height: min(58dvh, 500px);
+                min-height: 260px;
+                max-height: calc(100dvh - 100px);
+                border-radius: 13px;
+            }
+            #emoji-panel.is-expanded {
+                left: 8px;
+                right: 8px;
+                width: auto;
+                height: min(80dvh, 720px);
+                max-height: calc(100dvh - 90px);
+            }
+            unicode-emoji-picker {
+                --emoji-size: 1.45em;
+                --min-emoji-col-count: 7;
+                --max-emoji-col-count: 8;
+                --min-emoji-row-count: 4;
+                --max-emoji-row-count: 8;
+            }
+        }
+        @media (max-height: 520px) {
+            #emoji-panel { height: min(78dvh, 390px); min-height: 220px; }
+            #emoji-panel.is-expanded { height: 84dvh; }
+        }
+        @media (max-width: 380px) {
+            .emoji-panel-title { font-size: 12px; }
+            .emoji-panel-action { width: 28px !important; min-width: 28px; height: 28px; }
+            .emoji-recent-label, .emoji-v18-label { font-size: 9px; }
         }
 
         #upload-indicator { 
@@ -292,23 +449,17 @@
 <div class="input-bar" id="chat-bar">
     <div id="upload-indicator">جاري الرفع... ⏳</div>
 
-    <div id="emoji-panel">
-        <div class="emoji-header-tabs">
-            <span class="emoji-tab-btn active" onclick="switchEmojiTab('recent', this)" title="المستخدمة مؤخراً">🕒</span>
-            <span class="emoji-tab-btn" onclick="switchEmojiTab('all', this)" title="كل الإيموجيات">🌐</span>
-            <span class="emoji-tab-btn" onclick="switchEmojiTab('faces', this)" title="الوجوه والتعبير">😀</span>
-            <span class="emoji-tab-btn" onclick="switchEmojiTab('hearts', this)" title="القلوب">❤️</span>
-            <span class="emoji-tab-btn" onclick="switchEmojiTab('people', this)" title="الأشخاص والأيدي">👋</span>
-            <span class="emoji-tab-btn" onclick="switchEmojiTab('nature', this)" title="الحيوانات والطبيعة">🐻</span>
-            <span class="emoji-tab-btn" onclick="switchEmojiTab('food', this)" title="الطعام والشراب">🍕</span>
-            <span class="emoji-tab-btn" onclick="switchEmojiTab('travel', this)" title="السفر والأماكن">🚗</span>
-            <span class="emoji-tab-btn" onclick="switchEmojiTab('activities', this)" title="الأنشطة والرياضة">⚽</span>
-            <span class="emoji-tab-btn" onclick="switchEmojiTab('objects', this)" title="الأشياء والأدوات">💡</span>
-            <span class="emoji-tab-btn" onclick="switchEmojiTab('symbols', this)" title="الرموز">🔣</span>
-            <span class="emoji-tab-btn" onclick="switchEmojiTab('flags', this)" title="الأعلام">🏳️</span>
+    <div id="emoji-panel" aria-label="نافذة الإيموجي">
+        <div class="emoji-panel-toolbar">
+            <span class="emoji-panel-title">اختيار الإيموجي</span>
+            <div class="emoji-panel-actions">
+                <button type="button" class="emoji-panel-action" id="emoji-expand-btn" onclick="toggleEmojiPanelSize()" title="توسيع النافذة" aria-label="توسيع النافذة">⛶</button>
+                <button type="button" class="emoji-panel-action" onclick="closeEmojiPicker()" title="إغلاق" aria-label="إغلاق">✕</button>
+            </div>
         </div>
-        <div class="emoji-search-wrap"><input id="emoji-search" type="search" placeholder="ابحث بالإنجليزية أو الصق الإيموجي هنا..." autocomplete="off" oninput="searchEmojis(this.value)"></div>
-        <div class="emoji-body" id="emoji-list-body"></div>
+        <div class="emoji-recent-row" id="emoji-recent-row" aria-label="الإيموجيات المستخدمة مؤخراً"></div>
+        <div id="emoji-v18-row" aria-label="إيموجيات Unicode 18.0"></div>
+        <unicode-emoji-picker id="chat-emoji-picker" version="17.0" default-tab="face-emotion" tabs-position="top"></unicode-emoji-picker>
     </div>
     
     <span class="icon-btn" onclick="document.getElementById('f').click()">📎</span>
@@ -323,7 +474,10 @@
 </div>
 
 <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
-<script src="{{ url_for('static', filename='emoji-data.js') }}"></script>
+<script type="module">
+    import { defineUnicodeEmojiPicker } from 'https://cdn.jsdelivr.net/npm/unicode-emoji-picker@2.0.1/+esm';
+    defineUnicodeEmojiPicker();
+</script>
 <script>
     const socket = io({
       transports: ['websocket', 'polling'],
@@ -341,12 +495,19 @@
     let originalTitle = document.title;
     let titleNotificationTimer = null;
 
-    const emojiCategories = window.emojiCategories || {};
-    const allEmojis = [...new Set(Object.values(emojiCategories).flat())];
-    let activeEmojiTab = 'recent';
-
-
-    let recentEmojis = JSON.parse(localStorage.getItem('anas_chat_recent_emojis_v6') || '["🫫","😂","❤️","🩷","🏦","👍","😍","🙏","🔥"]');
+    const recentEmojiStorageKey = 'anas_chat_recent_emojis_v7';
+    let recentEmojis = [];
+    try {
+        const savedRecent = JSON.parse(localStorage.getItem(recentEmojiStorageKey) || '[]');
+        recentEmojis = Array.isArray(savedRecent) ? savedRecent.filter(value => typeof value === 'string').slice(0, 18) : [];
+    } catch (_) {
+        recentEmojis = [];
+    }
+    const skinToneModifiers = ['🏻', '🏼', '🏽', '🏾', '🏿'];
+    let emojiLongPressTimer = null;
+    let emojiLongPressStart = null;
+    let emojiLongPressTriggered = false;
+    let ignoreNextEmojiClickUntil = 0;
 
     const logoutBtn = document.getElementById('logout-btn');
     const statusBadge = document.getElementById('status-badge');
@@ -372,70 +533,368 @@
     });
 
     function toggleEmojiPicker() {
-        const panel = document.getElementById("emoji-panel");
-        if (panel.style.display === "flex") {
-            panel.style.display = "none";
+        const panel = document.getElementById('emoji-panel');
+        const isOpen = panel.style.display === 'flex';
+        if (isOpen) {
+            closeEmojiPicker();
+            return;
+        }
+        panel.style.display = 'flex';
+        panel.classList.remove('is-expanded');
+        updateEmojiExpandButton();
+        renderRecentEmojiRow();
+        renderUnicode18Row();
+    }
+
+    function closeEmojiPicker() {
+        const panel = document.getElementById('emoji-panel');
+        panel.style.display = 'none';
+        panel.classList.remove('is-expanded');
+        removeEmojiTonePopover();
+        updateEmojiExpandButton();
+    }
+
+    function toggleEmojiPanelSize() {
+        const panel = document.getElementById('emoji-panel');
+        panel.classList.toggle('is-expanded');
+        if (panel.style.left && window.innerWidth > 600) {
+            panel.style.width = panel.classList.contains('is-expanded')
+                ? 'min(560px, calc(100vw - 20px))'
+                : 'min(440px, calc(100vw - 20px))';
+        }
+        updateEmojiExpandButton();
+        requestAnimationFrame(() => clampEmojiPanelToViewport());
+    }
+
+    function clampEmojiPanelToViewport() {
+        const panel = document.getElementById('emoji-panel');
+        if (!panel || panel.style.display !== 'flex' || !panel.style.left) return;
+        const rect = panel.getBoundingClientRect();
+        const maxTop = Math.max(0, window.innerHeight - panel.offsetHeight);
+        if (window.innerWidth <= 600) {
+            panel.style.left = '8px';
+            panel.style.right = '8px';
+            panel.style.width = 'auto';
         } else {
-            panel.style.display = "flex";
-            document.getElementById('emoji-search').value = '';
-            switchEmojiTab('recent', document.querySelector('.emoji-tab-btn'));
+            const maxLeft = Math.max(0, window.innerWidth - panel.offsetWidth);
+            panel.style.left = Math.max(0, Math.min(rect.left, maxLeft)) + 'px';
+            panel.style.right = 'auto';
         }
+        panel.style.top = Math.max(0, Math.min(rect.top, maxTop)) + 'px';
     }
 
-    function renderEmojiList(listToShow) {
-        const body = document.getElementById("emoji-list-body");
-        body.innerHTML = "";
-        if (!listToShow || listToShow.length === 0) {
-            body.innerHTML = '<div style="grid-column:1/-1;font-size:13px;color:#8696a0;text-align:center;padding:22px 8px;">لا توجد نتائج</div>';
-            return;
-        }
-        const fragment = document.createDocumentFragment();
-        listToShow.forEach(em => {
-            const span = document.createElement("span");
-            span.className = "emoji-item";
-            span.innerText = em;
-            span.title = em;
-            span.setAttribute('role', 'button');
-            span.tabIndex = 0;
-            span.onclick = () => addEmojiToInput(em);
-            span.onkeydown = (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); addEmojiToInput(em); } };
-            fragment.appendChild(span);
+    function updateEmojiExpandButton() {
+        const panel = document.getElementById('emoji-panel');
+        const button = document.getElementById('emoji-expand-btn');
+        if (!button) return;
+        const expanded = panel.classList.contains('is-expanded');
+        button.textContent = expanded ? '⤡' : '⛶';
+        button.title = expanded ? 'تصغير النافذة' : 'توسيع النافذة';
+        button.setAttribute('aria-label', button.title);
+    }
+
+    function renderRecentEmojiRow() {
+        const row = document.getElementById('emoji-recent-row');
+        if (!row) return;
+        row.innerHTML = '<span class="emoji-recent-label">الأخيرة</span>';
+        const fallback = ['😂', '❤️', '👍', '😍', '🙏', '🔥'];
+        const list = recentEmojis.length ? recentEmojis.slice(0, 10) : fallback;
+        list.forEach(emoji => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'emoji-recent-item';
+            button.textContent = emoji;
+            button.title = 'إضافة ' + emoji;
+            button.setAttribute('aria-label', 'إضافة ' + emoji);
+            button.addEventListener('click', () => addEmojiToInput(emoji));
+            row.appendChild(button);
         });
-        body.appendChild(fragment);
     }
 
-    function switchEmojiTab(tab, btnEl) {
-        activeEmojiTab = tab;
-        document.querySelectorAll('.emoji-tab-btn').forEach(b => b.classList.remove('active'));
-        if(btnEl) btnEl.classList.add('active');
-        document.getElementById('emoji-search').value = '';
-        const list = tab === 'recent' ? recentEmojis : (tab === 'all' ? allEmojis : (emojiCategories[tab] || []));
-        renderEmojiList(list);
+    // Emoji 18.0 is listed separately because many Windows emoji fonts have not
+    // shipped glyphs for this release yet. The picker itself uses the complete
+    // Unicode Emoji 17.0 data and its official category ordering.
+    const unicode18Emojis = [
+        ['🫫', 'Cracking face'],
+        ['🫹', 'Leftwards thumb sign'],
+        ['🫺', 'Rightwards thumb sign'],
+        ['🫌', 'Monarch butterfly'],
+        ['🫝', 'Pickle'],
+        ['🛙', 'Lighthouse'],
+        ['🪋', 'Meteor'],
+        ['🪌', 'Eraser'],
+        ['🪍', 'Net with handle']
+    ];
+
+    function renderUnicode18Row() {
+        const row = document.getElementById('emoji-v18-row');
+        if (!row) return;
+        row.innerHTML = '<span class="emoji-v18-label">جديد 18.0</span>';
+        unicode18Emojis.forEach(([emoji, name]) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'emoji-v18-item';
+            button.textContent = emoji;
+            button.title = name + (emoji === '🫹' || emoji === '🫺' ? ' — اضغط مطولاً لاختيار لون البشرة' : '');
+            button.setAttribute('aria-label', name);
+            button.dataset.emoji = emoji;
+            button.dataset.skinTones = (emoji === '🫹' || emoji === '🫺') ? 'true' : 'false';
+            button.addEventListener('click', () => addEmojiToInput(emoji));
+            row.appendChild(button);
+        });
     }
 
-    function searchEmojis(query) {
-        const q = query.trim().toLocaleLowerCase();
-        if (!q) {
-            const list = activeEmojiTab === 'recent' ? recentEmojis : (activeEmojiTab === 'all' ? allEmojis : (emojiCategories[activeEmojiTab] || []));
-            renderEmojiList(list);
-            return;
+    function addEmojiToInput(emoji) {
+        const input = document.getElementById('msg-input');
+        if (!input || !emoji) return;
+        const start = Number.isInteger(input.selectionStart) ? input.selectionStart : input.value.length;
+        const end = Number.isInteger(input.selectionEnd) ? input.selectionEnd : input.value.length;
+        input.setRangeText(emoji, start, end, 'end');
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.focus();
+
+        recentEmojis = recentEmojis.filter(item => item !== emoji);
+        recentEmojis.unshift(emoji);
+        recentEmojis = recentEmojis.slice(0, 18);
+        try { localStorage.setItem(recentEmojiStorageKey, JSON.stringify(recentEmojis)); } catch (_) {}
+        renderRecentEmojiRow();
+    }
+
+    function insertSkinTone(baseEmoji, modifier) {
+        const clean = Array.from(String(baseEmoji || '').replace(/[🏻-🏿]/gu, ''));
+        if (!clean.length) return baseEmoji;
+        // Emoji modifiers belong immediately after the first pictographic person/hand.
+        // Remove only the immediately-following VS16 before inserting the modifier.
+        if (clean.length > 1 && clean[1] === '\uFE0F') clean.splice(1, 1);
+        clean.splice(1, 0, modifier);
+        return clean.join('');
+    }
+
+    function showEmojiTonePopover(baseEmoji, anchorRect) {
+        removeEmojiTonePopover();
+        const panel = document.getElementById('emoji-panel');
+        const panelRect = panel.getBoundingClientRect();
+        const popover = document.createElement('div');
+        popover.className = 'emoji-tone-popover';
+        popover.setAttribute('role', 'group');
+        popover.setAttribute('aria-label', 'اختيار لون البشرة');
+
+        const options = [{ emoji: baseEmoji, title: 'اللون الافتراضي' }];
+        const labels = ['فاتح', 'فاتح متوسط', 'متوسط', 'داكن متوسط', 'داكن'];
+        skinToneModifiers.forEach((modifier, index) => {
+            options.push({ emoji: insertSkinTone(baseEmoji, modifier), title: labels[index] });
+        });
+        options.forEach(option => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'emoji-tone-option';
+            button.textContent = option.emoji;
+            button.title = option.title;
+            button.setAttribute('aria-label', option.title);
+            button.addEventListener('click', () => {
+                addEmojiToInput(option.emoji);
+                removeEmojiTonePopover();
+            });
+            popover.appendChild(button);
+        });
+
+        panel.appendChild(popover);
+        const popoverWidth = Math.min(250, panelRect.width - 16);
+        const left = Math.max(8, Math.min(
+            anchorRect.left + anchorRect.width / 2 - panelRect.left - popoverWidth / 2,
+            panelRect.width - popoverWidth - 8
+        ));
+        let top = anchorRect.top - panelRect.top - 50;
+        if (top < 48) top = anchorRect.bottom - panelRect.top + 7;
+        top = Math.max(46, Math.min(top, panelRect.height - 51));
+        popover.style.left = left + 'px';
+        popover.style.top = top + 'px';
+    }
+
+    function removeEmojiTonePopover() {
+        const existing = document.querySelector('#emoji-panel .emoji-tone-popover');
+        if (existing) existing.remove();
+    }
+
+    function setupEmojiLongPress() {
+        const picker = document.getElementById('chat-emoji-picker');
+        const newEmojiRow = document.getElementById('emoji-v18-row');
+        if (!picker) return;
+
+        const beginTonePress = (event, baseEmoji, anchorElement) => {
+            clearTimeout(emojiLongPressTimer);
+            emojiLongPressTriggered = false;
+            emojiLongPressStart = { x: event.clientX, y: event.clientY };
+            const anchor = anchorElement.getBoundingClientRect();
+            if (!baseEmoji) return;
+            emojiLongPressTimer = setTimeout(() => {
+                emojiLongPressTriggered = true;
+                ignoreNextEmojiClickUntil = Date.now() + 1200;
+                showEmojiTonePopover(baseEmoji, anchor);
+            }, 520);
+        };
+
+        picker.addEventListener('pointerdown', event => {
+            const path = typeof event.composedPath === 'function' ? event.composedPath() : [];
+            const variantButton = path.find(node => {
+                if (!node || typeof node.getAttribute !== 'function') return false;
+                const part = (node.getAttribute('part') || '').split(/\s+/);
+                return part.includes('emoji') && part.includes('with-variations');
+            });
+            if (!variantButton) return;
+
+            const baseEmoji = (variantButton.textContent || '').trim();
+            beginTonePress(event, baseEmoji, variantButton);
+        }, true);
+
+        ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(eventName => {
+            picker.addEventListener(eventName, () => {
+                clearTimeout(emojiLongPressTimer);
+                emojiLongPressStart = null;
+            }, true);
+        });
+
+        if (newEmojiRow) {
+            newEmojiRow.addEventListener('pointerdown', event => {
+                const button = event.target.closest('.emoji-v18-item[data-skin-tones="true"]');
+                if (!button) return;
+                beginTonePress(event, button.dataset.emoji, button);
+            }, true);
+            ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(eventName => {
+                newEmojiRow.addEventListener(eventName, () => {
+                    clearTimeout(emojiLongPressTimer);
+                    emojiLongPressStart = null;
+                }, true);
+            });
+            newEmojiRow.addEventListener('pointermove', event => {
+                if (!emojiLongPressStart) return;
+                const moved = Math.hypot(event.clientX - emojiLongPressStart.x, event.clientY - emojiLongPressStart.y);
+                if (moved > 12) {
+                    clearTimeout(emojiLongPressTimer);
+                    emojiLongPressStart = null;
+                }
+            }, true);
+            newEmojiRow.addEventListener('click', event => {
+                if (emojiLongPressTriggered || Date.now() < ignoreNextEmojiClickUntil) {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                    emojiLongPressTriggered = false;
+                    ignoreNextEmojiClickUntil = 0;
+                }
+            }, true);
         }
-        // Search by pasted emoji or Unicode character; text search is supported by category names.
-        const matches = allEmojis.filter(em => em.includes(q) || ((window.emojiNames || {})[em] || '').includes(q));
-        renderEmojiList(matches);
+        picker.addEventListener('contextmenu', event => {
+            if (document.querySelector('#emoji-panel .emoji-tone-popover')) event.preventDefault();
+        }, true);
+        picker.addEventListener('pointermove', event => {
+            if (!emojiLongPressStart) return;
+            const moved = Math.hypot(event.clientX - emojiLongPressStart.x, event.clientY - emojiLongPressStart.y);
+            if (moved > 12) {
+                clearTimeout(emojiLongPressTimer);
+                emojiLongPressStart = null;
+            }
+        }, true);
+        picker.addEventListener('click', event => {
+            const path = typeof event.composedPath === 'function' ? event.composedPath() : [];
+            const variantButton = path.find(node => {
+                if (!node || typeof node.getAttribute !== 'function') return false;
+                const part = (node.getAttribute('part') || '').split(/\s+/);
+                return part.includes('emoji') && part.includes('with-variations');
+            });
+            if (emojiLongPressTriggered || Date.now() < ignoreNextEmojiClickUntil) {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                emojiLongPressTriggered = false;
+                ignoreNextEmojiClickUntil = 0;
+                return;
+            }
+            // A normal tap inserts the default emoji. Holding it opens the tone menu.
+            if (variantButton) {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                const baseEmoji = (variantButton.textContent || '').trim();
+                if (baseEmoji) addEmojiToInput(baseEmoji);
+            }
+        }, true);
+
     }
 
-    function addEmojiToInput(em) {
-        const inp = document.getElementById("msg-input");
-        inp.value += em;
-        inp.focus();
-
-        recentEmojis = recentEmojis.filter(e => e !== em);
-        recentEmojis.unshift(em);
-        if (recentEmojis.length > 30) recentEmojis.pop();
-        localStorage.setItem('anas_chat_recent_emojis_v6', JSON.stringify(recentEmojis));
+    const unicodeEmojiPicker = document.getElementById('chat-emoji-picker');
+    if (unicodeEmojiPicker) {
+        // Register once; the event bubbles from the custom element after it is upgraded.
+        unicodeEmojiPicker.addEventListener('emoji-pick', event => {
+            const emoji = event.detail && event.detail.emoji;
+            if (emoji) addEmojiToInput(emoji);
+        });
+        customElements.whenDefined('unicode-emoji-picker').then(() => {
+            if (typeof unicodeEmojiPicker.setTranslation === 'function') {
+                unicodeEmojiPicker.setTranslation({
+                    'search': { emoji: '🔎', title: 'بحث', inputPlaceholder: 'ابحث باسم الإيموجي بالإنجليزية...' },
+                    'face-emotion': { emoji: '😀', title: 'الوجوه والمشاعر' },
+                    'food-drink': { emoji: '🍕', title: 'الطعام والشراب' },
+                    'animals-nature': { emoji: '🐻', title: 'الحيوانات والطبيعة' },
+                    'activities-events': { emoji: '⚽', title: 'الأنشطة والفعاليات' },
+                    'person-people': { emoji: '👋', title: 'الأشخاص والإيماءات' },
+                    'travel-places': { emoji: '🚗', title: 'السفر والأماكن' },
+                    'objects': { emoji: '💡', title: 'الأشياء والأدوات' },
+                    'symbols': { emoji: '🔣', title: 'الرموز' },
+                    'flags': { emoji: '🏳️', title: 'الأعلام' }
+                });
+            }
+        }).catch(error => console.warn('Emoji picker setup failed:', error));
+        setupEmojiLongPress();
     }
 
+    function setupEmojiPanelDrag() {
+        const panel = document.getElementById('emoji-panel');
+        const toolbar = panel && panel.querySelector('.emoji-panel-toolbar');
+        if (!panel || !toolbar) return;
+        let drag = null;
+
+        toolbar.addEventListener('pointerdown', event => {
+            if (event.target.closest('.emoji-panel-action') || event.button !== 0) return;
+            const rect = panel.getBoundingClientRect();
+            const mobileLayout = window.innerWidth <= 600;
+            panel.style.top = rect.top + 'px';
+            panel.style.bottom = 'auto';
+            if (mobileLayout) {
+                panel.style.left = '8px';
+                panel.style.right = '8px';
+                panel.style.width = 'auto';
+            } else {
+                panel.style.left = rect.left + 'px';
+                panel.style.right = 'auto';
+                panel.style.width = rect.width + 'px';
+            }
+            drag = { pointerId: event.pointerId, mobile: mobileLayout, x: event.clientX - rect.left, y: event.clientY - rect.top };
+            toolbar.setPointerCapture(event.pointerId);
+            event.preventDefault();
+        });
+
+        toolbar.addEventListener('pointermove', event => {
+            if (!drag || event.pointerId !== drag.pointerId) return;
+            const maxTop = Math.max(0, window.innerHeight - panel.offsetHeight);
+            const top = Math.max(0, Math.min(event.clientY - drag.y, maxTop));
+            if (!drag.mobile) {
+                const maxLeft = Math.max(0, window.innerWidth - panel.offsetWidth);
+                const left = Math.max(0, Math.min(event.clientX - drag.x, maxLeft));
+                panel.style.left = left + 'px';
+            }
+            panel.style.top = top + 'px';
+        });
+
+        const stopDrag = event => {
+            if (drag && event.pointerId === drag.pointerId) drag = null;
+        };
+        toolbar.addEventListener('pointerup', stopDrag);
+        toolbar.addEventListener('pointercancel', stopDrag);
+        window.addEventListener('resize', () => clampEmojiPanelToViewport());
+    }
+    setupEmojiPanelDrag();
+
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape') closeEmojiPicker();
+    });
     function flashTitle(text) {
         document.title = text;
     }
@@ -469,8 +928,9 @@
         if (!e.target.closest('#reaction-picker') && !e.target.closest('.add-reaction-btn')) {
             document.getElementById('reaction-picker').style.display = 'none';
         }
-        if (!e.target.closest('#emoji-panel') && !e.target.closest('.icon-btn')) {
-            document.getElementById('emoji-panel').style.display = 'none';
+        const emojiToggle = e.target.closest('.icon-btn[onclick*="toggleEmojiPicker"]');
+        if (!e.target.closest('#emoji-panel') && !emojiToggle) {
+            closeEmojiPicker();
         }
     });
 
@@ -847,7 +1307,7 @@
             inp.style.height = "45px"; 
             cancelReply(); 
             inp.focus(); 
-            document.getElementById('emoji-panel').style.display = 'none';
+            closeEmojiPicker();
         } 
     }
     
