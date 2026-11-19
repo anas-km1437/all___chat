@@ -847,7 +847,11 @@
             button.textContent = option.emoji;
             button.title = option.title;
             button.setAttribute('aria-label', option.title);
-            button.addEventListener('click', () => {
+            button.addEventListener('click', event => {
+                // Selecting a tone inserts it and closes only the tone palette.
+                // Keep the main emoji picker open so the user can continue browsing.
+                event.preventDefault();
+                event.stopPropagation();
                 addEmojiToInput(option.emoji);
                 removeEmojiTonePopover();
             });
@@ -944,21 +948,28 @@
             }, true);
         });
 
-        // Desktop: right-click toggles the skin-tone palette (second right-click closes it).
+        // Desktop: right-click on an emoji opens its tone palette.
+        // Right-clicking the same emoji again closes only that palette.
+        // Right-clicking a different emoji switches the palette to that emoji.
         // Ctrl-click is also supported for trackpads that use it as a context-menu gesture.
+        const normalizeToneEmoji = emoji => String(emoji || '').replace(/[🏻-🏿]/gu, '');
         panel.addEventListener('contextmenu', event => {
             if (event.button !== 2 && !event.ctrlKey) return;
             event.preventDefault();
             event.stopPropagation();
 
+            const target = findEmojiTarget(event);
+            if (!target || !target.emoji || !modifierBaseRegex.test(target.emoji)) return;
+
             const currentPopover = panel.querySelector('.emoji-tone-popover');
-            if (currentPopover) {
+            if (currentPopover && normalizeToneEmoji(currentPopover.dataset.baseEmoji) === normalizeToneEmoji(target.emoji)) {
+                // Same emoji: toggle the palette off without closing the main picker.
                 removeEmojiTonePopover();
                 return;
             }
 
-            const target = findEmojiTarget(event);
-            if (!target || !target.emoji || !modifierBaseRegex.test(target.emoji)) return;
+            // No palette is open, or the user right-clicked a different emoji.
+            // showEmojiTonePopover replaces any existing palette in-place.
             clearTimeout(emojiLongPressTimer);
             emojiLongPressStart = null;
             emojiLongPressTriggered = false;
