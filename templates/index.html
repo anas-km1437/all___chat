@@ -186,6 +186,35 @@
             background: #263841;
             box-shadow: inset 0 -3px #00a884;
         }
+        #emoji-new-face-grid {
+            display: none;
+            flex: 0 0 auto;
+            align-items: center;
+            gap: 8px;
+            min-height: 48px;
+            padding: 3px 10px;
+            background: #202c33;
+            border-bottom: 1px solid #2a3942;
+            direction: ltr;
+        }
+        .emoji-new-label {
+            color: #8da5ae;
+            font-size: 11px;
+            white-space: nowrap;
+            direction: rtl;
+        }
+        #emoji-new-face-grid .emoji-grid-item {
+            flex: 0 0 40px;
+            width: 40px !important;
+            height: 40px;
+            border: 1px solid #36515b;
+            background: #172229;
+        }
+        #emoji-new-face-grid .emoji-grid-item:hover {
+            background: #2a3942;
+            border-color: #00a884;
+        }
+
         #emoji-recent-grid {
             display: none;
             flex: 1 1 auto;
@@ -503,6 +532,10 @@
             <button type="button" class="emoji-category-tab" data-category="symbols" role="tab" aria-label="الرموز" title="الرموز">❤️</button>
             <button type="button" class="emoji-category-tab" data-category="flags" role="tab" aria-label="الأعلام" title="الأعلام">🏳️</button>
         </div>
+        <div id="emoji-new-face-grid" aria-label="إيموجي جديد من Unicode 18.0">
+            <span class="emoji-new-label">جديد 18.0</span>
+            <button type="button" class="emoji-grid-item" data-emoji="🫫" title="وجه متشقق — Cracking Face" aria-label="إضافة وجه متشقق">🫫</button>
+        </div>
         <div id="emoji-recent-grid" role="tabpanel" aria-label="الإيموجيات المستخدمة مؤخراً"></div>
         <div id="emoji-arabic-results" aria-live="polite"></div>
         <unicode-emoji-picker id="chat-emoji-picker" version="16.0" default-tab="face-emotion" tabs-position="top" disable-variations="true"></unicode-emoji-picker>
@@ -545,7 +578,7 @@
     let recentEmojis = [];
     try {
         const savedRecent = JSON.parse(localStorage.getItem(recentEmojiStorageKey) || '[]');
-        recentEmojis = Array.isArray(savedRecent) ? savedRecent.filter(value => typeof value === 'string' && value.trim() && !/[\u{1FAEB}\u{1FAF9}\u{1FAFA}\u{1FACC}\u{1FADD}\u{1F6D9}\u{1FA8B}-\u{1FA8D}]/u.test(value)).slice(0, 18) : [];
+        recentEmojis = Array.isArray(savedRecent) ? savedRecent.filter(value => typeof value === 'string' && value.trim() && !/[\u{1FAF9}\u{1FAFA}\u{1FACC}\u{1FADD}\u{1F6D9}\u{1FA8B}-\u{1FA8D}]/u.test(value)).slice(0, 18) : [];
     } catch (_) {
         recentEmojis = [];
     }
@@ -668,6 +701,7 @@
         const picker = document.getElementById('chat-emoji-picker');
         const recentGrid = document.getElementById('emoji-recent-grid');
         const results = document.getElementById('emoji-arabic-results');
+        const newFaceGrid = document.getElementById('emoji-new-face-grid');
         const tabs = document.querySelectorAll('#emoji-category-tabs [data-category]');
         tabs.forEach(tab => {
             const active = tab.dataset.category === category;
@@ -675,6 +709,7 @@
             tab.setAttribute('aria-selected', active ? 'true' : 'false');
         });
         if (results) results.style.display = 'none';
+        if (newFaceGrid) newFaceGrid.style.display = category === 'face-emotion' ? 'flex' : 'none';
         if (category === 'recent') {
             if (picker) picker.style.display = 'none';
             if (recentGrid) recentGrid.style.display = 'grid';
@@ -699,7 +734,7 @@
     // Arabic aliases for common emoji. The complete Unicode picker remains available
     // for the full catalogue; these aliases provide practical Arabic search.
     const arabicEmojiIndex = [
-        ['😀','وجه مبتسم سعيد ابتسامة'],['😃','وجه مبتسم سعيد'],['😄','ضحك ابتسامة'],['😁','ابتسامة'],['😆','ضحك'],['😂','ضحك دموع يضحك'],['🤣','ضحك يتدحرج'],['😊','خجل ابتسامة'],['😍','حب عيون قلوب'],['🥰','حب وجه قلوب'],['😘','قبلة'],['😎','نظارة رائع'],['😭','بكاء دموع'],['😢','حزن بكاء'],['😡','غضب'],['🤔','تفكير يفكر'],['🥺','توسل'],['🤯','انفجار ذهول'],['🫠','ذائب ذوبان'],['🤗','عناق'],
+        ['😀','وجه مبتسم سعيد ابتسامة'],['😃','وجه مبتسم سعيد'],['😄','ضحك ابتسامة'],['😁','ابتسامة'],['😆','ضحك'],['😂','ضحك دموع يضحك'],['🤣','ضحك يتدحرج'],['😊','خجل ابتسامة'],['😍','حب عيون قلوب'],['🥰','حب وجه قلوب'],['😘','قبلة'],['😎','نظارة رائع'],['😭','بكاء دموع'],['😢','حزن بكاء'],['😡','غضب'],['🤔','تفكير يفكر'],['🥺','توسل'],['🤯','انفجار ذهول'],['🫠','ذائب ذوبان'],['🫫','وجه متشقق تشقق تصدع انكسار cracking face cracked'],['🤗','عناق'],
         ['❤️','قلب حب احمر'],['🧡','قلب برتقالي'],['💛','قلب اصفر'],['💚','قلب اخضر'],['💙','قلب ازرق'],['💜','قلب بنفسجي'],['🖤','قلب اسود'],['🤍','قلب ابيض'],['💔','قلب مكسور'],['💕','قلوب حب'],['💖','قلب لامع'],
         ['👍','اعجاب ممتاز موافق'],['👎','رفض'],['👏','تصفيق'],['🙏','دعاء شكرا رجاء'],['🤝','مصافحة اتفاق'],['👋','تلويح مرحبا'],['👌','تمام ممتاز'],['✌️','سلام نصر'],['🤞','حظ'],['💪','قوة عضلات'],['🫶','قلب باليدين'],['👀','عيون نظر'],
         ['🐶','كلب'],['🐱','قطة قط'],['🐭','فأر'],['🐰','ارنب'],['🦊','ثعلب'],['🐻','دب'],['🐼','باندا'],['🦁','اسد'],['🐸','ضفدع'],['🐵','قرد'],['🦋','فراشة'],['🐢','سلحفاة'],['🐬','دلفين'],['🦄','حصان وحيد القرن'],
@@ -721,11 +756,16 @@
             return;
         }
         recentGrid.style.display = 'none';
-        if (hasArabic) {
+        const newFaceGrid = document.getElementById('emoji-new-face-grid');
+        if (newFaceGrid) newFaceGrid.style.display = 'none';
+        const terms = q.split(/\s+/).filter(word => word.length > 1);
+        const matches = arabicEmojiIndex.filter(([, words]) => {
+            const normalizedWords = words.toLocaleLowerCase('en');
+            return normalizedWords.includes(q) || terms.some(word => normalizedWords.includes(word));
+        });
+        if (hasArabic || matches.length) {
             picker.style.display = 'none';
             results.style.display = 'grid';
-            const terms = q.split(/\s+/).filter(word => word.length > 1);
-            const matches = arabicEmojiIndex.filter(([, words]) => words.includes(q) || terms.some(word => words.includes(word)));
             results.replaceChildren();
             if (!matches.length) {
                 const empty = document.createElement('div'); empty.className = 'emoji-search-empty';
@@ -829,10 +869,34 @@
         const picker = document.getElementById('chat-emoji-picker');
         const recentGrid = document.getElementById('emoji-recent-grid');
         const arabicResults = document.getElementById('emoji-arabic-results');
+        const newFaceGrid = document.getElementById('emoji-new-face-grid');
         if (!panel || !picker) return;
 
         const modifierBaseRegex = /\p{Emoji_Modifier_Base}/u;
-        const beginTonePress = (event, baseEmoji, anchorElement) => {
+
+        const findEmojiTarget = event => {
+            const path = typeof event.composedPath === 'function' ? event.composedPath() : [event.target];
+            for (const node of path) {
+                if (!node || node.nodeType !== 1) continue;
+                if (node.matches && node.matches('button[data-emoji]')) {
+                    return { emoji: node.dataset.emoji || node.textContent.trim(), anchor: node };
+                }
+                if (node.getAttribute) {
+                    const parts = (node.getAttribute('part') || '').split(/\s+/);
+                    if (parts.includes('emoji') && !parts.includes('variation')) {
+                        return { emoji: (node.textContent || '').trim(), anchor: node };
+                    }
+                }
+            }
+            const button = event.target && event.target.closest
+                ? event.target.closest('button[data-emoji]')
+                : null;
+            return button ? { emoji: button.dataset.emoji || button.textContent.trim(), anchor: button } : null;
+        };
+
+        const beginTouchTonePress = (event, baseEmoji, anchorElement) => {
+            // Mouse users open the skin-tone palette with right-click; touch users keep long-press.
+            if (event.pointerType !== 'touch' && event.pointerType !== 'pen') return;
             if (!baseEmoji || !modifierBaseRegex.test(baseEmoji)) return;
             clearTimeout(emojiLongPressTimer);
             emojiLongPressTriggered = false;
@@ -846,20 +910,14 @@
         };
 
         picker.addEventListener('pointerdown', event => {
-            const path = typeof event.composedPath === 'function' ? event.composedPath() : [];
-            const emojiButton = path.find(node => {
-                if (!node || typeof node.getAttribute !== 'function') return false;
-                const part = (node.getAttribute('part') || '').split(/\s+/);
-                return part.includes('emoji') && !part.includes('variation');
-            });
-            if (!emojiButton) return;
-            beginTonePress(event, (emojiButton.textContent || '').trim(), emojiButton);
+            const target = findEmojiTarget(event);
+            if (target) beginTouchTonePress(event, target.emoji, target.anchor);
         }, true);
 
-        [recentGrid, arabicResults].filter(Boolean).forEach(container => {
+        [recentGrid, arabicResults, newFaceGrid].filter(Boolean).forEach(container => {
             container.addEventListener('pointerdown', event => {
-                const button = event.target.closest('button[data-emoji]');
-                if (button) beginTonePress(event, button.dataset.emoji, button);
+                const target = findEmojiTarget(event);
+                if (target) beginTouchTonePress(event, target.emoji, target.anchor);
             }, true);
         });
 
@@ -877,6 +935,27 @@
                 emojiLongPressStart = null;
             }, true);
         });
+
+        // Desktop: right-click an emoji that supports skin tones to open the palette.
+        // Ctrl-click is also supported for trackpads that use it as a context-menu gesture.
+        panel.addEventListener('contextmenu', event => {
+            // Suppress the browser's touch long-press menu while our palette is open.
+            if (document.querySelector('#emoji-panel .emoji-tone-popover')) {
+                event.preventDefault();
+                return;
+            }
+            if (event.button !== 2 && !event.ctrlKey) return;
+            const target = findEmojiTarget(event);
+            if (!target || !target.emoji || !modifierBaseRegex.test(target.emoji)) return;
+            event.preventDefault();
+            event.stopPropagation();
+            clearTimeout(emojiLongPressTimer);
+            emojiLongPressStart = null;
+            emojiLongPressTriggered = false;
+            ignoreNextEmojiClickUntil = 0;
+            showEmojiTonePopover(target.emoji, target.anchor.getBoundingClientRect());
+        }, true);
+
         panel.addEventListener('click', event => {
             if (emojiLongPressTriggered || Date.now() < ignoreNextEmojiClickUntil) {
                 event.preventDefault();
@@ -885,9 +964,14 @@
                 ignoreNextEmojiClickUntil = 0;
             }
         }, true);
-        panel.addEventListener('contextmenu', event => {
-            if (document.querySelector('#emoji-panel .emoji-tone-popover')) event.preventDefault();
-        }, true);
+    }
+
+    const emojiNewFaceGrid = document.getElementById('emoji-new-face-grid');
+    if (emojiNewFaceGrid) {
+        emojiNewFaceGrid.addEventListener('click', event => {
+            const button = event.target.closest('button[data-emoji]');
+            if (button) addEmojiToInput(button.dataset.emoji);
+        });
     }
 
     const emojiArabicSearch = document.getElementById('emoji-arabic-search');
