@@ -178,7 +178,8 @@
             border-radius: 8px;
             color: #e9edef;
             background: transparent;
-            font: 22px/1 "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
+            font: 22px/1 "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", "Android Emoji", sans-serif;
+            font-variant-emoji: emoji;
             cursor: pointer;
         }
         .emoji-category-tab:hover { background: #2a3942; }
@@ -237,7 +238,8 @@
             border-radius: 8px;
             background: transparent;
             color: #fff;
-            font: 25px/1 "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", "Android Emoji", sans-serif;
+            font: 25px/1 "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", "Android Emoji", sans-serif;
+            font-variant-emoji: emoji;
             cursor: pointer;
         }
         .emoji-grid-item:hover { background: #2a3942; }
@@ -263,7 +265,8 @@
         }
         .emoji-arabic-result {
             height: 42px; border: 0; border-radius: 8px; background: transparent; color: #fff;
-            font: 25px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", "Android Emoji", sans-serif; cursor: pointer;
+            font: 25px "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", "Android Emoji", sans-serif; cursor: pointer;
+            font-variant-emoji: emoji;
         }
         .emoji-arabic-result:hover { background: #2a3942; }
         .emoji-search-empty { grid-column: 1 / -1; color: #8da5ae; text-align: center; padding: 18px 4px; font-size: 13px; }
@@ -288,7 +291,7 @@
             --emoji-variation-marker-color-hover: #00a884;
             --variations-backdrop-fill-color: rgba(11,20,26,.65);
             --variations-fill-color: #172229;
-            --emoji-font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", "Android Emoji", sans-serif;
+            --emoji-font-family: "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", "Android Emoji", sans-serif;
             --emoji-size: 1.55em;
             --min-emoji-col-count: 7;
             --max-emoji-col-count: 10;
@@ -304,7 +307,11 @@
             border-radius: 18px;
             direction: ltr;
         }
-        unicode-emoji-picker::part(emoji) { border-radius: 8px; }
+        unicode-emoji-picker::part(emoji) {
+            border-radius: 8px;
+            font-family: "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", "Android Emoji", sans-serif;
+            font-variant-emoji: emoji;
+        }
         unicode-emoji-picker::part(emoji active),
         unicode-emoji-picker::part(emoji):hover,
         unicode-emoji-picker::part(emoji):focus-visible {
@@ -343,7 +350,7 @@
             border-radius: 8px;
             background: transparent;
             color: #fff;
-            font: 23px/1 "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", "Android Emoji", sans-serif;
+            font: 23px/1 "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", "Android Emoji", sans-serif;
             font-variant-emoji: emoji;
         }
         .emoji-tone-option:hover,
@@ -824,6 +831,7 @@
         const panelRect = panel.getBoundingClientRect();
         const popover = document.createElement('div');
         popover.className = 'emoji-tone-popover';
+        popover.dataset.baseEmoji = baseEmoji;
         popover.setAttribute('role', 'group');
         popover.setAttribute('aria-label', 'اختيار لون البشرة');
 
@@ -936,19 +944,21 @@
             }, true);
         });
 
-        // Desktop: right-click an emoji that supports skin tones to open the palette.
+        // Desktop: right-click toggles the skin-tone palette (second right-click closes it).
         // Ctrl-click is also supported for trackpads that use it as a context-menu gesture.
         panel.addEventListener('contextmenu', event => {
-            // Suppress the browser's touch long-press menu while our palette is open.
-            if (document.querySelector('#emoji-panel .emoji-tone-popover')) {
-                event.preventDefault();
-                return;
-            }
             if (event.button !== 2 && !event.ctrlKey) return;
-            const target = findEmojiTarget(event);
-            if (!target || !target.emoji || !modifierBaseRegex.test(target.emoji)) return;
             event.preventDefault();
             event.stopPropagation();
+
+            const currentPopover = panel.querySelector('.emoji-tone-popover');
+            if (currentPopover) {
+                removeEmojiTonePopover();
+                return;
+            }
+
+            const target = findEmojiTarget(event);
+            if (!target || !target.emoji || !modifierBaseRegex.test(target.emoji)) return;
             clearTimeout(emojiLongPressTimer);
             emojiLongPressStart = null;
             emojiLongPressTriggered = false;
